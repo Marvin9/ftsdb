@@ -1,0 +1,2 @@
+- Append Only
+- No tombstones
