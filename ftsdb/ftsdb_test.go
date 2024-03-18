@@ -80,4 +80,22 @@ func TestEnsureEverything(t *testing.T) {
 	if tot != exp {
 		t.Errorf("expected %d, got %d", exp, tot)
 	}
+
+	query = Query{}
+	query.Series("mac")
+
+	it = tsdb.Find(query)
+	tot = 0
+	for it.Is() {
+		if it.GetSeries() != "mac" {
+			t.Errorf("expected mac, got %s", it.GetSeries())
+		}
+		it = it.Next()
+		tot++
+	}
+
+	exp = num * 2
+	if tot != exp {
+		t.Errorf("expected %d, got %d", exp, tot)
+	}
 }

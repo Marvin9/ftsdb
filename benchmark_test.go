@@ -191,11 +191,11 @@ func Benchmark_BasicFTSDB(b *testing.B) {
 		}
 
 		query := ftsdb.Query{}
-		query.Series(seriesMac)
+		query.Series("mac")
 
 		FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series(seriesWin)
+		query.Series("win")
 
 		FTSDBIterateAll(tsdb.Find(query))
 	}
@@ -273,11 +273,11 @@ func Benchmark_RangeFTSDB(b *testing.B) {
 
 		query := ftsdb.Query{}
 		query.RangeStart(500000)
-		query.Series(seriesMac)
+		query.Series("mac")
 
 		FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series(seriesWin)
+		query.Series("win")
 
 		FTSDBIterateAll(tsdb.Find(query))
 	}
@@ -356,11 +356,11 @@ func Benchmark_RangesFTSDB(b *testing.B) {
 		query := ftsdb.Query{}
 		query.RangeStart(500000)
 		query.RangeEnd(510000)
-		query.Series(seriesMac)
+		query.Series("mac")
 
 		FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series(seriesWin)
+		query.Series("win")
 
 		FTSDBIterateAll(tsdb.Find(query))
 	}
@@ -482,11 +482,7 @@ func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 		seriesList = seriesList[0:1]
 		for _, seriesIn := range seriesList {
 			for key, val := range seriesIn {
-				__series := map[string]interface{}{}
-
-				__series[key] = fmt.Sprint(val)
-
-				query.Series(__series)
+				query.Series(fmt.Sprintf("%s-%s", key, val))
 
 				FTSDBIterateAll(tsdb.Find(query))
 			}

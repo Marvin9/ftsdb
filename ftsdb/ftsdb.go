@@ -11,7 +11,7 @@ type Query struct {
 	metric     *string
 	rangeStart *int64
 	rangeEnd   *int64
-	series     *map[string]interface{}
+	series     *string
 }
 
 func (q *Query) Metric(metric string) *Query {
@@ -29,8 +29,8 @@ func (q *Query) RangeEnd(rangeEnd int64) *Query {
 	return q
 }
 
-func (q *Query) Series(series map[string]interface{}) *Query {
-	q.series = &series
+func (q *Query) Series(seriesHash string) *Query {
+	q.series = &seriesHash
 	return q
 }
 
@@ -206,7 +206,7 @@ func (ftsdb *ftsdb) Find(query Query) DataPointsIterator {
 		currentSeriesItr := currentMetricsItr.series
 
 		for currentSeriesItr != nil {
-			seriesMatched := query.series == nil || hashSeries(*query.series) == hashSeries(currentSeriesItr.series)
+			seriesMatched := query.series == nil || *query.series == currentSeriesItr.hash
 			if seriesMatched {
 				*currentMatchedSeriesPtr = matchedSeriesPresentation{
 					matched:       currentSeriesItr,
@@ -286,7 +286,7 @@ func NewMetric(metric string, logger *zap.Logger) *ftsdbMetric {
 func (fm *ftsdbMetric) Append(series map[string]interface{}, seriesHash string, timestamp int64, value float64) {
 	fm.logger.Debug("appending series", zap.Any("series", series), zap.Int64("timestamp", timestamp), zap.Float64("value", value))
 
-	seriesPtr := fm.createSeries(series)
+	seriesPtr := fm.createSeries(series, seriesHash)
 
 	if seriesPtr.dataPoints == nil {
 		seriesPtr.dataPoints = NewFastArray()
@@ -295,19 +295,19 @@ func (fm *ftsdbMetric) Append(series map[string]interface{}, seriesHash string, 
 	seriesPtr.dataPoints.Insert(newDataPoint(timestamp, value))
 }
 
-func (fm *ftsdbMetric) createSeries(series map[string]interface{}) *ftsdbSeries {
+func (fm *ftsdbMetric) createSeries(series map[string]interface{}, seriesHash string) *ftsdbSeries {
 	fm.logger.Debug("creating series", zap.Any("series", series))
 
 	itr := &fm.series
 
 	for *itr != nil {
-		if (*itr).hash == hashSeries(series) {
+		if (*itr).hash == seriesHash {
 			return *itr
 		}
 		itr = &(*itr).next
 	}
 
-	*itr = newSeries(series)
+	*itr = newSeries(series, seriesHash)
 
 	return *itr
 }
@@ -337,10 +337,10 @@ type ftsdbSeries struct {
 	next       *ftsdbSeries
 }
 
-func newSeries(series map[string]interface{}) *ftsdbSeries {
+func newSeries(series map[string]interface{}, hash string) *ftsdbSeries {
 	return &ftsdbSeries{
 		series: series,
-		hash:   hashSeries(series),
+		hash:   hash,
 	}
 }
 

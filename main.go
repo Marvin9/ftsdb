@@ -87,7 +87,7 @@ func main() {
 
 	query := &ftsdb.Query{}
 	// // query = query.Metric("jay")
-	query.Series(seriesMac)
+	query.Series("mac")
 	for i := 0; i < 100000; i++ {
 		query.RangeStart(int64(i))
 		tsdb.Find(*query)
