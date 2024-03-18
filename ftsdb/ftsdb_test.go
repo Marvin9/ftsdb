@@ -30,9 +30,9 @@ func TestEnsureEverything(t *testing.T) {
 
 	var i int
 	for i = 1; i <= num; i++ {
-		metric.Append(seriesMac, int64(i), float64(i))
-		metric.Append(seriesWin, int64(i), float64(i))
-		metric2.Append(seriesMac, int64(i), float64(i))
+		metric.Append(seriesMac, "mac", int64(i), float64(i))
+		metric.Append(seriesWin, "win", int64(i), float64(i))
+		metric2.Append(seriesMac, "mac", int64(i), float64(i))
 	}
 
 	logger.Info("executing search query")

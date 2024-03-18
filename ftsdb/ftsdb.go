@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/huandu/skiplist"
 	"go.uber.org/zap"
 )
 
@@ -103,12 +102,12 @@ func (ftsdb *ftsdb) DisplayMetrics() {
 			ftsdb.logger.Info("--")
 			ftsdb.logger.Info("series", zap.String("series-hash", seriesItr.hash), zap.Any("series", seriesItr.series))
 
-			dataPointsItr := seriesItr.dataPoints.Front()
+			dataPointsItr := 0
 
-			for dataPointsItr != nil {
-				val := dataPointsItr.Value.(*ftsdbDataPoint)
+			for dataPointsItr < seriesItr.dataPoints.size {
+				val := seriesItr.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
 				ftsdb.logger.Info("data-point", zap.Int64("timestamp", val.timestamp), zap.Float64("value", val.value))
-				dataPointsItr = dataPointsItr.Next()
+				dataPointsItr++
 			}
 
 			seriesItr = seriesItr.next
@@ -229,9 +228,9 @@ func (ftsdb *ftsdb) Find(query Query) DataPointsIterator {
 	matchedSeriesItr := &matchedSeries
 
 	for matchedSeriesItr.matched != nil {
-		dataPointsItr := matchedSeriesItr.matched.dataPoints.Front()
+		dataPointsItr := 0
 		if query.rangeStart != nil {
-			dataPointsItr = matchedSeriesItr.matched.dataPoints.Find(*query.rangeStart)
+			dataPointsItr = matchedSeriesItr.matched.LowerBoundTimestamp(*query.rangeStart)
 		}
 
 		rangeEnd := math.MaxInt64
@@ -240,20 +239,22 @@ func (ftsdb *ftsdb) Find(query Query) DataPointsIterator {
 			rangeEnd = int(*query.rangeEnd)
 		}
 
-		for dataPointsItr != nil {
-			if (*dataPointsItr).Value.(*ftsdbDataPoint).timestamp > int64(rangeEnd) {
+		for dataPointsItr < matchedSeriesItr.matched.dataPoints.size {
+			dataPoint := matchedSeriesItr.matched.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
+
+			if dataPoint.timestamp > int64(rangeEnd) {
 				break
 			}
 
 			*matchedDataPointsItr = matchedDataPointsRepresentation{
-				matched:       (*dataPointsItr).Value.(*ftsdbDataPoint),
+				matched:       dataPoint,
 				next:          &matchedDataPointsRepresentation{},
 				matchedMetric: matchedSeriesItr.matchedMetric,
 				matchedSeries: matchedSeriesItr.matched,
 			}
 
 			matchedDataPointsItr = matchedDataPointsItr.next
-			dataPointsItr = dataPointsItr.Next()
+			dataPointsItr++
 		}
 
 		matchedSeriesItr = matchedSeriesItr.next
@@ -282,27 +283,16 @@ func NewMetric(metric string, logger *zap.Logger) *ftsdbMetric {
 	}
 }
 
-func (fm *ftsdbMetric) Append(series map[string]interface{}, timestamp int64, value float64) {
+func (fm *ftsdbMetric) Append(series map[string]interface{}, seriesHash string, timestamp int64, value float64) {
 	fm.logger.Debug("appending series", zap.Any("series", series), zap.Int64("timestamp", timestamp), zap.Float64("value", value))
 
 	seriesPtr := fm.createSeries(series)
 
 	if seriesPtr.dataPoints == nil {
-		seriesPtr.dataPoints = skiplist.New(skiplist.GreaterThanFunc(func(d1, d2 interface{}) int {
-			_d1 := d1.(int64)
-			_d2 := d2.(int64)
-
-			if _d1 > _d2 {
-				return 1
-			} else if _d1 < _d2 {
-				return -1
-			}
-
-			return 0
-		}))
+		seriesPtr.dataPoints = NewFastArray()
 	}
 
-	(*seriesPtr.dataPoints).Set(timestamp, newDataPoint(timestamp, value))
+	seriesPtr.dataPoints.Insert(newDataPoint(timestamp, value))
 }
 
 func (fm *ftsdbMetric) createSeries(series map[string]interface{}) *ftsdbSeries {
@@ -343,7 +333,7 @@ func hashSeries(series map[string]interface{}) string {
 type ftsdbSeries struct {
 	series     map[string]interface{}
 	hash       string
-	dataPoints *skiplist.SkipList
+	dataPoints *FastArray
 	next       *ftsdbSeries
 }
 
@@ -352,6 +342,29 @@ func newSeries(series map[string]interface{}) *ftsdbSeries {
 		series: series,
 		hash:   hashSeries(series),
 	}
+}
+
+func (s *ftsdbSeries) LowerBoundTimestamp(timestamp int64) int {
+	var mid int
+
+	low := 0
+	high := s.dataPoints.size
+
+	for low < high {
+		mid = low + (high-low)/2
+
+		if timestamp <= s.dataPoints.At(mid).(*ftsdbDataPoint).timestamp {
+			high = mid
+		} else {
+			low = mid + 1
+		}
+	}
+
+	if low < s.dataPoints.size && s.dataPoints.At(low).(*ftsdbDataPoint).timestamp < timestamp {
+		low++
+	}
+
+	return low
 }
 
 type ftsdbDataPoint struct {

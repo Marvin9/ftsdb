@@ -78,8 +78,8 @@ func main() {
 
 	var i int64
 	for i = 0; i < 1000; i++ {
-		metric.Append(seriesMac, int64(i), float64(i))
-		metric.Append(seriesWin, int64(i), float64(i))
+		metric.Append(seriesMac, "mac", int64(i), float64(i))
+		metric.Append(seriesWin, "win", int64(i), float64(i))
 		// metric2.Append(seriesMac, int64(i), float64(i))
 	}
 
