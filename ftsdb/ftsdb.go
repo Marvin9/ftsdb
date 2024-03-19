@@ -57,13 +57,13 @@ func newFtsdbInMemory(logger *zap.Logger) *ftsdbInMemory {
 }
 
 func (ftsdbim *ftsdbInMemory) createMetric(metric string) *ftsdbMetric {
-	ftsdbim.logger.Debug("creating metric", zap.String("metric", metric))
+	// ftsdbim.logger.Debug("creating metric", zap.String("metric", metric))
 	newMetric := NewMetric(metric, ftsdbim.logger.Named("metric-"+metric))
 
 	itr := &ftsdbim.metric
 	for *itr != nil {
 		if (*itr).metric == metric {
-			ftsdbim.logger.Debug("found existing metric")
+			// ftsdbim.logger.Debug("found existing metric")
 			return *itr
 		}
 		itr = &(*itr).next
@@ -71,7 +71,7 @@ func (ftsdbim *ftsdbInMemory) createMetric(metric string) *ftsdbMetric {
 
 	*itr = newMetric
 
-	ftsdbim.logger.Debug("created new metric")
+	// ftsdbim.logger.Debug("created new metric")
 	return *itr
 }
 
@@ -284,7 +284,7 @@ func NewMetric(metric string, logger *zap.Logger) *ftsdbMetric {
 }
 
 func (fm *ftsdbMetric) Append(series map[string]interface{}, seriesHash string, timestamp int64, value float64) {
-	fm.logger.Debug("appending series", zap.Any("series", series), zap.Int64("timestamp", timestamp), zap.Float64("value", value))
+	// fm.logger.Debug("appending series", zap.Any("series", series), zap.Int64("timestamp", timestamp), zap.Float64("value", value))
 
 	seriesPtr := fm.createSeries(series, seriesHash)
 
@@ -296,7 +296,7 @@ func (fm *ftsdbMetric) Append(series map[string]interface{}, seriesHash string, 
 }
 
 func (fm *ftsdbMetric) createSeries(series map[string]interface{}, seriesHash string) *ftsdbSeries {
-	fm.logger.Debug("creating series", zap.Any("series", series))
+	// fm.logger.Debug("creating series", zap.Any("series", series))
 
 	itr := &fm.series
 
@@ -313,11 +313,11 @@ func (fm *ftsdbMetric) createSeries(series map[string]interface{}, seriesHash st
 }
 
 func (fm *ftsdbMetric) findSeries(series map[string]interface{}) *ftsdbSeries {
-	fm.logger.Debug("finding series", zap.Any("series", series))
+	// fm.logger.Debug("finding series", zap.Any("series", series))
 	itr := &fm.series
 	for *itr != nil {
 		if (*itr).hash == hashSeries(series) {
-			fm.logger.Debug("found")
+			// fm.logger.Debug("found")
 			return *itr
 		}
 		itr = &(*itr).next
