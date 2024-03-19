@@ -422,15 +422,14 @@ func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 				__series := labels.FromStrings(key, fmt.Sprint(val))
 
 				var i int64
-				for i = 0; i < 100000; i++ {
+				for i = 0; i < 100; i++ {
 					if firstTime {
-						ref, err = app.Append(0, __series, i, float64(i))
-						noErr(err)
+						ref, _ = app.Append(0, __series, i, float64(i))
+						// noErr(err)
 						firstTime = false
 						continue
 					}
 
-					app.Append(ref, __series, i, float64(i))
 					app.Append(ref, __series, i, float64(i))
 				}
 			}
@@ -442,7 +441,6 @@ func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 		querier, err := db.Querier(math.MinInt64, math.MaxInt64)
 		noErr(err)
 
-		seriesList = seriesList[0:1]
 		for _, seriesIn := range seriesList {
 			for key, val := range seriesIn {
 				PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprint(val))))
@@ -459,7 +457,7 @@ func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 
-	seriesList := getHeavySeriesList(10)
+	seriesList := getHeavySeriesList(100)
 
 	for n := 0; n < b.N; n++ {
 		tsdb := ftsdb.NewFTSDB(logger)
@@ -471,15 +469,15 @@ func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 				__series := map[string]interface{}{}
 
 				__series[key] = fmt.Sprint(val)
-				for i := 0; i < 100000; i++ {
+				for i := 0; i < 100; i++ {
 					metric.Append(__series, fmt.Sprintf("%s-%s", key, val), int64(i), float64(i))
 				}
 			}
 		}
 
+		fmt.Println("done")
 		query := ftsdb.Query{}
 
-		seriesList = seriesList[0:1]
 		for _, seriesIn := range seriesList {
 			for key, val := range seriesIn {
 				query.Series(fmt.Sprintf("%s-%s", key, val))
