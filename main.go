@@ -65,10 +65,10 @@ func main() {
 
 	// time.Sleep(time.Second * 20)
 
-	seriesMac := map[string]interface{}{
+	seriesMac := map[string]string{
 		"host": "macbook",
 	}
-	seriesWin := map[string]interface{}{
+	seriesWin := map[string]string{
 		"host": "wind",
 	}
 
@@ -78,8 +78,8 @@ func main() {
 
 	var i int64
 	for i = 0; i < 1000; i++ {
-		metric.Append(seriesMac, "mac", int64(i), float64(i))
-		metric.Append(seriesWin, "win", int64(i), float64(i))
+		metric.Append(seriesMac, int64(i), float64(i))
+		metric.Append(seriesWin, int64(i), float64(i))
 		// metric2.Append(seriesMac, int64(i), float64(i))
 	}
 
@@ -87,7 +87,7 @@ func main() {
 
 	query := &ftsdb.Query{}
 	// // query = query.Metric("jay")
-	query.Series("mac")
+	query.Series(seriesMac)
 	for i := 0; i < 100000; i++ {
 		query.RangeStart(int64(i))
 		tsdb.Find(*query)

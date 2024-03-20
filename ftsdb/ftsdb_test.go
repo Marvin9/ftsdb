@@ -1,6 +1,7 @@
 package ftsdb
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -14,10 +15,10 @@ func TestEnsureEverything(t *testing.T) {
 
 	// time.Sleep(time.Second * 20)
 
-	seriesMac := map[string]interface{}{
+	seriesMac := map[string]string{
 		"host": "macbook",
 	}
-	seriesWin := map[string]interface{}{
+	seriesWin := map[string]string{
 		"host": "wind",
 	}
 
@@ -30,22 +31,27 @@ func TestEnsureEverything(t *testing.T) {
 
 	var i int
 	for i = 1; i <= num; i++ {
-		metric.Append(seriesMac, "mac", int64(i), float64(i))
-		metric.Append(seriesWin, "win", int64(i), float64(i))
-		metric2.Append(seriesMac, "mac", int64(i), float64(i))
+		metric.Append(seriesMac, int64(i), float64(i))
+		metric.Append(seriesWin, int64(i), float64(i))
+		metric2.Append(seriesMac, int64(i), float64(i))
 	}
-
-	logger.Info("executing search query")
 
 	query := Query{}
 
-	it := tsdb.Find(query)
+	ss := tsdb.Find(query)
 
 	tot := 0
-	for it.Is() {
-		it = it.Next()
-		tot++
+	for ss.Next() != nil {
+		dp := ss.DatapointsIterator
+
+		fmt.Println(ss.GetSeries())
+		for dp.Next() != nil {
+			fmt.Println(dp.GetDatapoint())
+			tot++
+		}
 	}
+
+	fmt.Println("done")
 
 	if tot != num*3 {
 		t.Errorf("expected %d, got %d", num*3, tot)
@@ -53,12 +59,15 @@ func TestEnsureEverything(t *testing.T) {
 
 	query.RangeStart(int64(num / 2))
 
-	it = tsdb.Find(query)
+	ss = tsdb.Find(query)
 
 	tot = 0
-	for it.Is() {
-		it = it.Next()
-		tot++
+	for ss.Next() != nil {
+		it := ss.DatapointsIterator
+
+		for it.Next() != nil {
+			tot++
+		}
 	}
 
 	exp := ((num / 2) + 1) * 3
@@ -69,12 +78,16 @@ func TestEnsureEverything(t *testing.T) {
 	query = *query.RangeStart(0)
 	query = *query.RangeEnd(int64((num / 2) + 1))
 
-	it = tsdb.Find(query)
+	ss = tsdb.Find(query)
 
 	tot = 0
-	for it.Is() {
-		it = it.Next()
-		tot++
+	tot = 0
+	for ss.Next() != nil {
+		it := ss.DatapointsIterator
+
+		for it.Next() != nil {
+			tot++
+		}
 	}
 
 	if tot != exp {
@@ -82,16 +95,21 @@ func TestEnsureEverything(t *testing.T) {
 	}
 
 	query = Query{}
-	query.Series("mac")
+	query.Series(seriesMac)
 
-	it = tsdb.Find(query)
+	ss = tsdb.Find(query)
 	tot = 0
-	for it.Is() {
-		if it.GetSeries() != "mac" {
-			t.Errorf("expected mac, got %s", it.GetSeries())
+	tot = 0
+	for ss.Next() != nil {
+		it := ss.DatapointsIterator
+
+		if !seriesMatched(ss.GetSeries().SeriesValue, seriesMac) {
+			t.Errorf("expected %s, got %s", seriesMac, ss.GetSeries().SeriesValue)
 		}
-		it = it.Next()
-		tot++
+
+		for it.Next() != nil {
+			tot++
+		}
 	}
 
 	exp = num * 2

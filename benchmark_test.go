@@ -18,22 +18,30 @@ import (
 )
 
 func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) {
+	tot := 0
 	for selector.Next() {
 		series := selector.At()
 
 		it := series.Iterator(nil)
 
 		for it.Next() == chunkenc.ValFloat {
+			tot++
 			it.At()
 		}
 	}
+	fmt.Println(tot)
 }
 
-func FTSDBIterateAll(it ftsdb.DataPointsIterator) {
-	for it.Is() {
-		// fmt.Println(it.GetMetric(), it.GetSeries(), it.GetTimestamp(), it.GetValue())
-		it = it.Next()
+func FTSDBIterateAll(ss *ftsdb.SeriesIterator) {
+	tot := 0
+	for ss.Next() != nil {
+		it := ss.DatapointsIterator
+
+		for it.Next() != nil {
+			tot++
+		}
 	}
+	fmt.Println(tot)
 }
 
 func Dummy() {
@@ -173,10 +181,10 @@ func Benchmark_BasicFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 
 	for n := 0; n < b.N; n++ {
-		seriesMac := map[string]interface{}{
+		seriesMac := map[string]string{
 			"host": "macbook",
 		}
-		seriesWin := map[string]interface{}{
+		seriesWin := map[string]string{
 			"host": "wind",
 		}
 
@@ -186,16 +194,16 @@ func Benchmark_BasicFTSDB(b *testing.B) {
 
 		var i int64
 		for i = 0; i < 10000; i++ {
-			metric.Append(seriesMac, "mac", int64(i), float64(i))
-			metric.Append(seriesWin, "win", int64(i), float64(i))
+			metric.Append(seriesMac, int64(i), float64(i))
+			metric.Append(seriesWin, int64(i), float64(i))
 		}
 
 		query := ftsdb.Query{}
-		query.Series("mac")
+		query.Series(seriesMac)
 
 		FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series("win")
+		query.Series(seriesWin)
 
 		FTSDBIterateAll(tsdb.Find(query))
 	}
@@ -254,10 +262,10 @@ func Benchmark_RangePrometheusTSDB(b *testing.B) {
 func Benchmark_RangeFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	for n := 0; n < b.N; n++ {
-		seriesMac := map[string]interface{}{
+		seriesMac := map[string]string{
 			"host": "macbook",
 		}
-		seriesWin := map[string]interface{}{
+		seriesWin := map[string]string{
 			"host": "wind",
 		}
 
@@ -267,17 +275,17 @@ func Benchmark_RangeFTSDB(b *testing.B) {
 
 		var i int64
 		for i = 0; i < 1000000; i++ {
-			metric.Append(seriesMac, "mac", int64(i), float64(i))
-			metric.Append(seriesWin, "win", int64(i), float64(i))
+			metric.Append(seriesMac, int64(i), float64(i))
+			metric.Append(seriesWin, int64(i), float64(i))
 		}
 
 		query := ftsdb.Query{}
 		query.RangeStart(500000)
-		query.Series("mac")
+		query.Series(seriesMac)
 
 		FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series("win")
+		query.Series(seriesWin)
 
 		FTSDBIterateAll(tsdb.Find(query))
 	}
@@ -336,10 +344,10 @@ func Benchmark_RangesPrometheusTSDB(b *testing.B) {
 func Benchmark_RangesFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	for n := 0; n < b.N; n++ {
-		seriesMac := map[string]interface{}{
+		seriesMac := map[string]string{
 			"host": "macbook",
 		}
-		seriesWin := map[string]interface{}{
+		seriesWin := map[string]string{
 			"host": "wind",
 		}
 
@@ -349,18 +357,18 @@ func Benchmark_RangesFTSDB(b *testing.B) {
 
 		var i int64
 		for i = 0; i < 1000000; i++ {
-			metric.Append(seriesMac, "mac", int64(i), float64(i))
-			metric.Append(seriesWin, "win", int64(i), float64(i))
+			metric.Append(seriesMac, int64(i), float64(i))
+			metric.Append(seriesWin, int64(i), float64(i))
 		}
 
 		query := ftsdb.Query{}
 		query.RangeStart(500000)
 		query.RangeEnd(510000)
-		query.Series("mac")
+		query.Series(seriesMac)
 
 		FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series("win")
+		query.Series(seriesWin)
 
 		FTSDBIterateAll(tsdb.Find(query))
 	}
@@ -399,7 +407,7 @@ func getHeavySeries(_i int) map[string]interface{} {
 
 func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 	// logger, _ := zap.NewProduction()
-	seriesList := getHeavySeriesList(10)
+	seriesList := getHeavySeriesList(100)
 
 	for n := 0; n < b.N; n++ {
 		dir, err := os.MkdirTemp("", "tsdb-test")
@@ -466,11 +474,11 @@ func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 
 		for _, seriesIn := range seriesList {
 			for key, val := range seriesIn {
-				__series := map[string]interface{}{}
+				__series := map[string]string{}
 
 				__series[key] = fmt.Sprint(val)
 				for i := 0; i < 100; i++ {
-					metric.Append(__series, fmt.Sprintf("%s-%s", key, val), int64(i), float64(i))
+					metric.Append(__series, int64(i), float64(i))
 				}
 			}
 		}
@@ -480,7 +488,10 @@ func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 
 		for _, seriesIn := range seriesList {
 			for key, val := range seriesIn {
-				query.Series(fmt.Sprintf("%s-%s", key, val))
+				__series := map[string]string{}
+
+				__series[key] = fmt.Sprint(val)
+				query.Series(__series)
 
 				FTSDBIterateAll(tsdb.Find(query))
 			}

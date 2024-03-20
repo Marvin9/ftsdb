@@ -11,7 +11,7 @@ type Query struct {
 	metric     *string
 	rangeStart *int64
 	rangeEnd   *int64
-	series     *string
+	series     map[string]string
 }
 
 func (q *Query) Metric(metric string) *Query {
@@ -29,8 +29,8 @@ func (q *Query) RangeEnd(rangeEnd int64) *Query {
 	return q
 }
 
-func (q *Query) Series(seriesHash string) *Query {
-	q.series = &seriesHash
+func (q *Query) Series(series map[string]string) *Query {
+	q.series = series
 	return q
 }
 
@@ -40,7 +40,7 @@ type Iterator interface {
 }
 
 type DBInterface interface {
-	Find(query Query) DataPointsIterator
+	Find(query Query) *SeriesIterator
 	CreateMetric(metric string) *ftsdbMetric
 	DisplayMetrics()
 }
@@ -95,12 +95,18 @@ func (ftsdb *ftsdb) DisplayMetrics() {
 		ftsdb.logger.Info("--")
 		ftsdb.logger.Info("metric", zap.String("name", itr.metric), zap.Bool("has-next", itr.next != nil))
 
-		dataPointsItr := 0
+		seriesItr := itr.series
 
-		for dataPointsItr < itr.dataPoints.size {
-			val := itr.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
-			ftsdb.logger.Info("data-point", zap.Int64("timestamp", val.timestamp), zap.Float64("value", val.value), zap.String("series", fmt.Sprint(val.series.hash)))
-			dataPointsItr++
+		for seriesItr != nil {
+			dataPointsItr := 0
+
+			ftsdb.logger.Info("series", zap.Any("series", seriesItr.series))
+			for dataPointsItr < seriesItr.dataPoints.size {
+				val := seriesItr.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
+				ftsdb.logger.Info("data-point", zap.Int64("timestamp", val.timestamp), zap.Float64("value", val.value))
+				dataPointsItr++
+			}
+			seriesItr = seriesItr.next
 		}
 
 		itr = itr.next
@@ -120,7 +126,7 @@ type DataPointsIterator interface {
 	Is() bool
 	Next() DataPointsIterator
 	GetMetric() string
-	GetSeries() string
+	GetSeries() map[string]string
 	GetTimestamp() int64
 	GetValue() float64
 }
@@ -137,8 +143,8 @@ func (mmp *matchedDataPointsRepresentation) GetMetric() string {
 	return mmp.matchedMetric.metric
 }
 
-func (mmp *matchedDataPointsRepresentation) GetSeries() string {
-	return mmp.matchedSeries.hash
+func (mmp *matchedDataPointsRepresentation) GetSeries() map[string]string {
+	return mmp.matchedSeries.series
 }
 
 func (mmp *matchedDataPointsRepresentation) Next() DataPointsIterator {
@@ -166,7 +172,27 @@ type matchedSeriesPresentation struct {
 	matchedMetric *ftsdbMetric
 }
 
-func (ftsdb *ftsdb) Find(query Query) DataPointsIterator {
+type Series struct {
+	SeriesValue map[string]string
+}
+
+type Datapoint struct {
+	Timestamp int64
+	Value     int64
+}
+
+type DatapointsIterator struct {
+	Next         func() *DatapointsIterator
+	GetDatapoint func() Datapoint
+}
+
+type SeriesIterator struct {
+	Next               func() *SeriesIterator
+	GetSeries          func() Series
+	DatapointsIterator *DatapointsIterator
+}
+
+func (ftsdb *ftsdb) Find(query Query) *SeriesIterator {
 	// MATCHED METRICS
 	matchedMetrics := matchedMetricsPresentation{}
 
@@ -186,51 +212,94 @@ func (ftsdb *ftsdb) Find(query Query) DataPointsIterator {
 		currentMetricsItr = currentMetricsItr.next
 	}
 
-	// MATCHED DATA POINTS
-	matchedDataPoints := matchedDataPointsRepresentation{}
+	// MATCHED SERIES
+	currentMatchedMetricsItr = &matchedMetrics
 
-	matchedDataPointsItr := &matchedDataPoints
+	var currentSeriesItr *ftsdbSeries = nil
 
-	rangeStart := math.MinInt64
-	if query.rangeStart != nil {
-		rangeStart = int(*query.rangeStart)
-	}
+	ss := &SeriesIterator{}
 
-	rangeEnd := math.MaxInt64
-	if query.rangeEnd != nil {
-		rangeEnd = int(*query.rangeEnd)
-	}
-
-	for matchedMetrics.matched != nil {
-		dataPointsItr := 0
-
-		for dataPointsItr < matchedMetrics.matched.dataPoints.size {
-
-			dataPoint := matchedMetrics.matched.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
-
-			if dataPoint.timestamp > int64(rangeEnd) || dataPoint.timestamp < int64(rangeStart) {
-				dataPointsItr++
-				continue
-			}
-
-			matched := query.series == nil || dataPoint.series.hash == *query.series
-			if matched {
-				*matchedDataPointsItr = matchedDataPointsRepresentation{
-					matched:       dataPoint,
-					next:          &matchedDataPointsRepresentation{},
-					matchedMetric: matchedMetrics.matched,
-					matchedSeries: dataPoint.series,
-				}
-
-				matchedDataPointsItr = matchedDataPointsItr.next
-			}
-			dataPointsItr++
+	Next := func() *SeriesIterator {
+		if currentSeriesItr == nil {
+			currentSeriesItr = currentMatchedMetricsItr.matched.series
+		} else {
+			currentSeriesItr = currentSeriesItr.next
 		}
 
-		matchedMetrics = *matchedMetrics.next
+		for currentMatchedMetricsItr != nil {
+			for currentSeriesItr != nil {
+				matched := query.series == nil || seriesMatched(currentSeriesItr.series, query.series)
+
+				if matched {
+					dataPointsItr := 0
+					initialised := false
+
+					var rangeEnd int64
+
+					dd := &DatapointsIterator{}
+
+					Next := func() *DatapointsIterator {
+						if !initialised {
+							if query.rangeStart != nil {
+								dataPointsItr = currentSeriesItr.LowerBoundTimestamp(*query.rangeStart)
+							}
+
+							rangeEnd = math.MaxInt64
+
+							if query.rangeEnd != nil {
+								rangeEnd = *query.rangeEnd
+							}
+							initialised = true
+						} else {
+							dataPointsItr++
+						}
+
+						if dataPointsItr < currentSeriesItr.dataPoints.size {
+							dataPoint := currentSeriesItr.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
+
+							if dataPoint.timestamp > rangeEnd {
+								dataPointsItr++
+								return nil
+							}
+
+							return dd
+						}
+
+						return nil
+					}
+
+					dd.Next = Next
+					dd.GetDatapoint = func() Datapoint {
+						val := currentSeriesItr.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
+						return Datapoint{
+							Timestamp: val.timestamp,
+							Value:     int64(val.value),
+						}
+					}
+					ss.DatapointsIterator = dd
+					return ss
+				}
+
+				currentSeriesItr = currentSeriesItr.next
+			}
+
+			currentMatchedMetricsItr = currentMatchedMetricsItr.next
+			if currentMatchedMetricsItr != nil && currentMatchedMetricsItr.matched != nil {
+				currentSeriesItr = currentMatchedMetricsItr.matched.series
+			}
+		}
+
+		return nil
 	}
 
-	return &matchedDataPoints
+	ss.Next = Next
+	ss.GetSeries = func() Series {
+		return Series{
+			SeriesValue: currentSeriesItr.series,
+		}
+	}
+
+	return ss
 }
 
 type MetricInterface interface {
@@ -239,28 +308,52 @@ type MetricInterface interface {
 }
 
 type ftsdbMetric struct {
-	metric     string
-	dataPoints *FastArray
-	next       *ftsdbMetric
-	logger     *zap.Logger
+	metric string
+	series *ftsdbSeries
+	next   *ftsdbMetric
+	logger *zap.Logger
 }
 
 func NewMetric(metric string, logger *zap.Logger) *ftsdbMetric {
 	return &ftsdbMetric{
-		metric:     metric,
-		dataPoints: NewFastArray(),
-		logger:     logger,
+		metric: metric,
+		logger: logger,
+		series: nil,
 	}
 }
 
-func (fm *ftsdbMetric) Append(series map[string]interface{}, seriesHash string, timestamp int64, value float64) {
+func (fm *ftsdbMetric) Append(series map[string]string, timestamp int64, value float64) {
 	// fm.logger.Debug("appending series", zap.Any("series", series), zap.Int64("timestamp", timestamp), zap.Float64("value", value))
 
-	if fm.dataPoints == nil {
-		fm.dataPoints = NewFastArray()
+	seriesItr := fm.createSeries(series)
+
+	(*seriesItr).dataPoints.Insert(newDataPoint(timestamp, value))
+}
+
+func (fm *ftsdbMetric) createSeries(series map[string]string) *ftsdbSeries {
+	seriesItr := &fm.series
+
+	for *seriesItr != nil {
+		matched := true
+		for k, v := range series {
+			vv, found := (*seriesItr).series[k]
+
+			if !found || vv != v {
+				matched = false
+				break
+			}
+		}
+
+		if matched {
+			return (*seriesItr)
+		}
+
+		seriesItr = &(*seriesItr).next
 	}
 
-	fm.dataPoints.Insert(newDataPoint(timestamp, value, newSeries(series, seriesHash)))
+	*seriesItr = newSeries(series)
+
+	return *seriesItr
 }
 
 func hashSeries(series map[string]interface{}) string {
@@ -268,18 +361,31 @@ func hashSeries(series map[string]interface{}) string {
 }
 
 type ftsdbSeries struct {
-	series map[string]interface{}
-	hash   string
+	series     map[string]string
+	dataPoints *FastArray
+	next       *ftsdbSeries
 }
 
-func newSeries(series map[string]interface{}, hash string) *ftsdbSeries {
+func newSeries(series map[string]string) *ftsdbSeries {
 	return &ftsdbSeries{
-		series: series,
-		hash:   hash,
+		series:     series,
+		dataPoints: NewFastArray(),
+		next:       nil,
 	}
 }
 
-func (s *ftsdbMetric) LowerBoundTimestamp(timestamp int64) int {
+func seriesMatched(series1 map[string]string, series2 map[string]string) bool {
+	for k, v := range series1 {
+		vv, found := series2[k]
+
+		if !found || vv != v {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *ftsdbSeries) LowerBoundTimestamp(timestamp int64) int {
 	var mid int
 
 	low := 0
@@ -305,13 +411,11 @@ func (s *ftsdbMetric) LowerBoundTimestamp(timestamp int64) int {
 type ftsdbDataPoint struct {
 	timestamp int64
 	value     float64
-	series    *ftsdbSeries
 }
 
-func newDataPoint(timestamp int64, value float64, series *ftsdbSeries) *ftsdbDataPoint {
+func newDataPoint(timestamp int64, value float64) *ftsdbDataPoint {
 	return &ftsdbDataPoint{
 		timestamp: timestamp,
 		value:     value,
-		series:    series,
 	}
 }
