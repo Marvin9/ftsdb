@@ -25,8 +25,8 @@ func NewDataTransformer(logger *zap.Logger) *dataTransformer {
 	}
 }
 
-func (dt *dataTransformer) GenCPUData() []CPUData {
-	dt.logger.Debug("generating cpu data")
+func (dt *dataTransformer) GenCPUData(_len int) []CPUData {
+	// dt.logger.Info("generating cpu data")
 
 	file, err := os.Open("data/cpu_usage.json")
 
@@ -51,7 +51,13 @@ func (dt *dataTransformer) GenCPUData() []CPUData {
 
 	transformCpuData := []CPUData{}
 
-	for _, data := range cpuData {
+	ln := len(transformCpuData)
+
+	if _len > 0 {
+		ln = _len
+	}
+
+	for _, data := range cpuData[:ln] {
 		unixTs := dt.parseTimestamp(data.Timestamp)
 
 		if unixTs == -1 {
@@ -64,7 +70,7 @@ func (dt *dataTransformer) GenCPUData() []CPUData {
 		})
 	}
 
-	dt.logger.Debug("cpu data ready")
+	// dt.logger.Info("cpu data ready")
 	return transformCpuData
 }
 

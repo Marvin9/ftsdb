@@ -19,8 +19,12 @@ import (
 
 func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) {
 	tot := 0
+	var __series labels.Labels
 	for selector.Next() {
 		series := selector.At()
+		if __series.Len() == 0 {
+			__series = series.Labels()
+		}
 
 		it := series.Iterator(nil)
 
@@ -29,7 +33,9 @@ func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) {
 			it.At()
 		}
 	}
-	fmt.Println(tot)
+	if tot > 0 {
+		// fmt.Println(__series, tot)
+	}
 }
 
 func FTSDBIterateAll(ss *ftsdb.SeriesIterator) {
@@ -37,18 +43,20 @@ func FTSDBIterateAll(ss *ftsdb.SeriesIterator) {
 	for ss.Next() != nil {
 		it := ss.DatapointsIterator
 
+		// fmt.Println(ss.GetSeries())
 		for it.Next() != nil {
+			// fmt.Println(it.GetDatapoint())
 			tot++
 		}
 	}
-	fmt.Println(tot)
+	// fmt.Println(tot)
 }
 
 func Dummy() {
 	logger, _ := zap.NewDevelopment()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData()
+	cpuData := dataTransformer.GenCPUData(-1)
 
 	logger.Debug("cpu-data", zap.Int("len", len(cpuData)))
 
@@ -129,51 +137,46 @@ func Dummy() {
 
 func Benchmark_BasicPrometheusTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		dir, err := os.MkdirTemp("", "tsdb-test")
-		noErr(err)
+		b.Run("core", func(b *testing.B) {
+			dir, err := os.MkdirTemp("", "tsdb-test")
+			noErr(err)
 
-		// logger.Info("directory-at", zap.String("dir", dir))
+			// logger.Info("directory-at", zap.String("dir", dir))
 
-		// Open a TSDB for reading and/or writing.
-		db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
-		noErr(err)
+			// Open a TSDB for reading and/or writing.
+			db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+			noErr(err)
 
-		// Open an appender for writing.
-		app := db.Appender(context.Background())
+			// Open an appender for writing.
+			app := db.Appender(context.Background())
 
-		seriesMac := labels.FromStrings("host", "macbook")
-		seriesWin := labels.FromStrings("host", "wind")
+			seriesMac := labels.FromStrings("host", "macbook")
+			seriesWin := labels.FromStrings("host", "wind")
 
-		var ref storage.SeriesRef = 0
+			var ref storage.SeriesRef = 0
 
-		var i int64
-		for i = 0; i < 10000; i++ {
-			if i == 0 {
-				ref, err = app.Append(0, seriesMac, i, float64(i))
+			var i int64
+			for i = 0; i < 10000; i++ {
+				app.Append(0, seriesMac, i, float64(i))
 				app.Append(ref, seriesWin, i, float64(i))
-				noErr(err)
-				continue
 			}
 
-			app.Append(ref, seriesMac, i, float64(i))
-			app.Append(ref, seriesWin, i, float64(i))
-		}
+			err = app.Commit()
+			noErr(err)
 
-		err = app.Commit()
-		noErr(err)
+			querier, err := db.Querier(math.MinInt64, math.MaxInt64)
+			noErr(err)
 
-		querier, err := db.Querier(math.MinInt64, math.MaxInt64)
-		noErr(err)
+			querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "macbook"))
 
-		querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "macbook"))
+			querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "wind"))
 
-		querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "wind"))
+			err = db.Close()
+			noErr(err)
 
-		err = db.Close()
-		noErr(err)
-
-		err = os.RemoveAll(dir)
-		noErr(err)
+			err = os.RemoveAll(dir)
+			noErr(err)
+		})
 	}
 }
 
@@ -181,196 +184,191 @@ func Benchmark_BasicFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 
 	for n := 0; n < b.N; n++ {
-		seriesMac := map[string]string{
-			"host": "macbook",
-		}
-		seriesWin := map[string]string{
-			"host": "wind",
-		}
+		b.Run("core", func(b *testing.B) {
+			seriesMac := map[string]string{
+				"host": "macbook",
+			}
+			seriesWin := map[string]string{
+				"host": "wind",
+			}
 
-		tsdb := ftsdb.NewFTSDB(logger)
+			tsdb := ftsdb.NewFTSDB(logger)
 
-		metric := tsdb.CreateMetric("jay")
+			metric := tsdb.CreateMetric("jay")
 
-		var i int64
-		for i = 0; i < 10000; i++ {
-			metric.Append(seriesMac, int64(i), float64(i))
-			metric.Append(seriesWin, int64(i), float64(i))
-		}
+			var i int64
+			for i = 0; i < 10000; i++ {
+				metric.Append(seriesMac, int64(i), float64(i))
+				metric.Append(seriesWin, int64(i), float64(i))
+			}
 
-		query := ftsdb.Query{}
-		query.Series(seriesMac)
+			query := ftsdb.Query{}
+			query.Series(seriesMac)
 
-		FTSDBIterateAll(tsdb.Find(query))
+			FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series(seriesWin)
+			query.Series(seriesWin)
 
-		FTSDBIterateAll(tsdb.Find(query))
+			FTSDBIterateAll(tsdb.Find(query))
+		})
 	}
 }
 
 func Benchmark_RangePrometheusTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		dir, err := os.MkdirTemp("", "tsdb-test")
-		noErr(err)
+		b.Run("core", func(b *testing.B) {
+			dir, err := os.MkdirTemp("", "tsdb-test")
+			noErr(err)
 
-		// logger.Info("directory-at", zap.String("dir", dir))
+			// logger.Info("directory-at", zap.String("dir", dir))
 
-		// Open a TSDB for reading and/or writing.
-		db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
-		noErr(err)
+			// Open a TSDB for reading and/or writing.
+			db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+			noErr(err)
 
-		// Open an appender for writing.
-		app := db.Appender(context.Background())
+			// Open an appender for writing.
+			app := db.Appender(context.Background())
 
-		seriesMac := labels.FromStrings("host", "macbook")
-		seriesWin := labels.FromStrings("host", "wind")
+			seriesMac := labels.FromStrings("host", "macbook")
+			seriesWin := labels.FromStrings("host", "wind")
 
-		var ref storage.SeriesRef = 0
+			var i int64
+			for i = 0; i < 1000000; i++ {
+				app.Append(0, seriesMac, i, float64(i))
+				app.Append(0, seriesWin, i, float64(i))
 
-		var i int64
-		for i = 0; i < 1000000; i++ {
-			if i == 0 {
-				ref, err = app.Append(0, seriesMac, i, float64(i))
-				app.Append(ref, seriesWin, i, float64(i))
-				noErr(err)
-				continue
 			}
 
-			app.Append(ref, seriesMac, i, float64(i))
-			app.Append(ref, seriesWin, i, float64(i))
-		}
+			err = app.Commit()
+			noErr(err)
 
-		err = app.Commit()
-		noErr(err)
+			querier, err := db.Querier(500000, math.MaxInt64)
+			noErr(err)
 
-		querier, err := db.Querier(500000, math.MaxInt64)
-		noErr(err)
+			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")))
 
-		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")))
+			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "wind")))
 
-		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "wind")))
+			err = db.Close()
+			noErr(err)
 
-		err = db.Close()
-		noErr(err)
-
-		err = os.RemoveAll(dir)
-		noErr(err)
+			err = os.RemoveAll(dir)
+			noErr(err)
+		})
 	}
 }
 
 func Benchmark_RangeFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	for n := 0; n < b.N; n++ {
-		seriesMac := map[string]string{
-			"host": "macbook",
-		}
-		seriesWin := map[string]string{
-			"host": "wind",
-		}
+		b.Run("core", func(b *testing.B) {
+			seriesMac := map[string]string{
+				"host": "macbook",
+			}
+			seriesWin := map[string]string{
+				"host": "wind",
+			}
 
-		tsdb := ftsdb.NewFTSDB(logger)
+			tsdb := ftsdb.NewFTSDB(logger)
 
-		metric := tsdb.CreateMetric("jay")
+			metric := tsdb.CreateMetric("jay")
 
-		var i int64
-		for i = 0; i < 1000000; i++ {
-			metric.Append(seriesMac, int64(i), float64(i))
-			metric.Append(seriesWin, int64(i), float64(i))
-		}
+			var i int64
+			for i = 0; i < 1000000; i++ {
+				metric.Append(seriesMac, int64(i), float64(i))
+				metric.Append(seriesWin, int64(i), float64(i))
+			}
 
-		query := ftsdb.Query{}
-		query.RangeStart(500000)
-		query.Series(seriesMac)
+			query := ftsdb.Query{}
+			query.RangeStart(500000)
+			query.Series(seriesMac)
 
-		FTSDBIterateAll(tsdb.Find(query))
+			FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series(seriesWin)
+			query.Series(seriesWin)
 
-		FTSDBIterateAll(tsdb.Find(query))
+			FTSDBIterateAll(tsdb.Find(query))
+		})
 	}
 }
 
 func Benchmark_RangesPrometheusTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		dir, err := os.MkdirTemp("", "tsdb-test")
-		noErr(err)
+		b.Run("core", func(b *testing.B) {
+			dir, err := os.MkdirTemp("", "tsdb-test")
+			noErr(err)
 
-		// logger.Info("directory-at", zap.String("dir", dir))
+			// logger.Info("directory-at", zap.String("dir", dir))
 
-		// Open a TSDB for reading and/or writing.
-		db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
-		noErr(err)
+			// Open a TSDB for reading and/or writing.
+			db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+			noErr(err)
 
-		// Open an appender for writing.
-		app := db.Appender(context.Background())
+			// Open an appender for writing.
+			app := db.Appender(context.Background())
 
-		seriesMac := labels.FromStrings("host", "macbook")
-		seriesWin := labels.FromStrings("host", "wind")
+			seriesMac := labels.FromStrings("host", "macbook")
+			seriesWin := labels.FromStrings("host", "wind")
 
-		var ref storage.SeriesRef = 0
+			var ref storage.SeriesRef = 0
 
-		var i int64
-		for i = 0; i < 1000000; i++ {
-			if i == 0 {
-				ref, err = app.Append(0, seriesMac, i, float64(i))
+			var i int64
+			for i = 0; i < 1000000; i++ {
+				app.Append(0, seriesMac, i, float64(i))
 				app.Append(ref, seriesWin, i, float64(i))
-				noErr(err)
-				continue
 			}
 
-			app.Append(ref, seriesMac, i, float64(i))
-			app.Append(ref, seriesWin, i, float64(i))
-		}
+			err = app.Commit()
+			noErr(err)
 
-		err = app.Commit()
-		noErr(err)
+			querier, err := db.Querier(500000, 510000)
+			noErr(err)
 
-		querier, err := db.Querier(500000, 510000)
-		noErr(err)
+			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")))
 
-		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")))
+			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "wind")))
 
-		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "wind")))
+			err = db.Close()
+			noErr(err)
 
-		err = db.Close()
-		noErr(err)
-
-		err = os.RemoveAll(dir)
-		noErr(err)
+			err = os.RemoveAll(dir)
+			noErr(err)
+		})
 	}
 }
 
 func Benchmark_RangesFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	for n := 0; n < b.N; n++ {
-		seriesMac := map[string]string{
-			"host": "macbook",
-		}
-		seriesWin := map[string]string{
-			"host": "wind",
-		}
+		b.Run("core", func(b *testing.B) {
+			seriesMac := map[string]string{
+				"host": "macbook",
+			}
+			seriesWin := map[string]string{
+				"host": "wind",
+			}
 
-		tsdb := ftsdb.NewFTSDB(logger)
+			tsdb := ftsdb.NewFTSDB(logger)
 
-		metric := tsdb.CreateMetric("jay")
+			metric := tsdb.CreateMetric("jay")
 
-		var i int64
-		for i = 0; i < 1000000; i++ {
-			metric.Append(seriesMac, int64(i), float64(i))
-			metric.Append(seriesWin, int64(i), float64(i))
-		}
+			var i int64
+			for i = 0; i < 1000000; i++ {
+				metric.Append(seriesMac, int64(i), float64(i))
+				metric.Append(seriesWin, int64(i), float64(i))
+			}
 
-		query := ftsdb.Query{}
-		query.RangeStart(500000)
-		query.RangeEnd(510000)
-		query.Series(seriesMac)
+			query := ftsdb.Query{}
+			query.RangeStart(500000)
+			query.RangeEnd(510000)
+			query.Series(seriesMac)
 
-		FTSDBIterateAll(tsdb.Find(query))
+			FTSDBIterateAll(tsdb.Find(query))
 
-		query.Series(seriesWin)
+			query.Series(seriesWin)
 
-		FTSDBIterateAll(tsdb.Find(query))
+			FTSDBIterateAll(tsdb.Find(query))
+		})
 	}
 }
 
@@ -384,8 +382,8 @@ func genHeavyMetricsList(_i int) []string {
 	return metricsList
 }
 
-func getHeavySeriesList(_i int) []map[string]interface{} {
-	seriesList := []map[string]interface{}{}
+func getHeavySeriesList(_i int) []map[string]int {
+	seriesList := []map[string]int{}
 
 	for i := 0; i < _i; i++ {
 		seriesList = append(seriesList, getHeavySeries(i))
@@ -394,10 +392,10 @@ func getHeavySeriesList(_i int) []map[string]interface{} {
 	return seriesList
 }
 
-func getHeavySeries(_i int) map[string]interface{} {
-	series := make(map[string]interface{})
+func getHeavySeries(_i int) map[string]int {
+	series := make(map[string]int)
 
-	for i := 0; i < _i; i++ {
+	for i := _i; i < _i+1; i++ {
 		seriesName := fmt.Sprintf("series-%d", i)
 		series[seriesName] = rand.Intn(100)
 	}
@@ -410,55 +408,50 @@ func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 	seriesList := getHeavySeriesList(100)
 
 	for n := 0; n < b.N; n++ {
-		dir, err := os.MkdirTemp("", "tsdb-test")
-		noErr(err)
+		b.Run("core", func(b *testing.B) {
+			dir, err := os.MkdirTemp("", "tsdb-test")
+			noErr(err)
 
-		// logger.Info("directory-at", zap.String("dir", dir))
+			// logger.Info("directory-at", zap.String("dir", dir))
 
-		// Open a TSDB for reading and/or writing.
-		db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
-		noErr(err)
+			// Open a TSDB for reading and/or writing.
+			db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+			noErr(err)
 
-		// Open an appender for writing.
-		app := db.Appender(context.Background())
+			// Open an appender for writing.
+			app := db.Appender(context.Background())
 
-		var ref storage.SeriesRef = 0
+			// var ref storage.SeriesRef = 0
 
-		firstTime := true
-		for _, seriesIn := range seriesList {
-			for key, val := range seriesIn {
-				__series := labels.FromStrings(key, fmt.Sprint(val))
+			for _, seriesIn := range seriesList {
+				for key, val := range seriesIn {
+					// firstTime := true
+					__series := labels.FromStrings(key, fmt.Sprintf("%d", val))
 
-				var i int64
-				for i = 0; i < 100; i++ {
-					if firstTime {
-						ref, _ = app.Append(0, __series, i, float64(i))
-						// noErr(err)
-						firstTime = false
-						continue
+					i := int64(0)
+					for i = 0; i < 10000; i++ {
+						app.Append(0, __series, i, float64(i))
 					}
-
-					app.Append(ref, __series, i, float64(i))
 				}
 			}
-		}
 
-		err = app.Commit()
-		noErr(err)
+			err = app.Commit()
+			noErr(err)
 
-		querier, err := db.Querier(math.MinInt64, math.MaxInt64)
-		noErr(err)
+			querier, err := db.Querier(math.MinInt64, math.MaxInt64)
+			noErr(err)
 
-		for _, seriesIn := range seriesList {
-			for key, val := range seriesIn {
-				PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprint(val))))
+			for _, seriesIn := range seriesList {
+				for key, val := range seriesIn {
+					PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprintf("%d", val))))
+				}
 			}
-		}
-		err = db.Close()
-		noErr(err)
+			err = db.Close()
+			noErr(err)
 
-		err = os.RemoveAll(dir)
-		noErr(err)
+			err = os.RemoveAll(dir)
+			noErr(err)
+		})
 	}
 }
 
@@ -468,33 +461,102 @@ func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 	seriesList := getHeavySeriesList(100)
 
 	for n := 0; n < b.N; n++ {
-		tsdb := ftsdb.NewFTSDB(logger)
+		b.Run("core", func(b *testing.B) {
+			tsdb := ftsdb.NewFTSDB(logger)
 
-		metric := tsdb.CreateMetric("jay")
+			metric := tsdb.CreateMetric("jay")
 
-		for _, seriesIn := range seriesList {
-			for key, val := range seriesIn {
-				__series := map[string]string{}
+			for _, seriesIn := range seriesList {
+				for key, val := range seriesIn {
+					__series := map[string]string{}
 
-				__series[key] = fmt.Sprint(val)
-				for i := 0; i < 100; i++ {
-					metric.Append(__series, int64(i), float64(i))
+					__series[key] = fmt.Sprint(val)
+					for i := 0; i < 10000; i++ {
+						metric.Append(__series, int64(i), float64(i))
+					}
 				}
 			}
-		}
 
-		fmt.Println("done")
-		query := ftsdb.Query{}
+			query := ftsdb.Query{}
 
-		for _, seriesIn := range seriesList {
-			for key, val := range seriesIn {
-				__series := map[string]string{}
+			for _, seriesIn := range seriesList {
+				for key, val := range seriesIn {
+					__series := map[string]string{}
 
-				__series[key] = fmt.Sprint(val)
-				query.Series(__series)
+					__series[key] = fmt.Sprintf("%d", val)
+					query.Series(__series)
 
-				FTSDBIterateAll(tsdb.Find(query))
+					FTSDBIterateAll(tsdb.Find(query))
+				}
 			}
-		}
+		})
+	}
+}
+
+func BenchmarkRealCPUUsageDataPrometheusTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+	dataTransformer := transformer.NewDataTransformer(logger)
+
+	cpuData := dataTransformer.GenCPUData(100000)
+	series := labels.FromStrings("host", "macbook")
+
+	for n := 0; n < b.N; n++ {
+
+		b.Run("main", func(b *testing.B) {
+			dir, err := os.MkdirTemp("", "tsdb-test")
+			// logger.Info(dir)
+			noErr(err)
+
+			// logger.Info("directory-at", zap.String("dir", dir))
+
+			// Open a TSDB for reading and/or writing.
+			db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+			noErr(err)
+
+			// Open an appender for writing.
+			app := db.Appender(context.Background())
+
+			for _, data := range cpuData {
+				app.Append(0, series, data.Timestamp, data.CPUUsage)
+			}
+
+			err = app.Commit()
+			noErr(err)
+
+			querier, err := db.Querier(math.MinInt64, math.MaxInt64)
+			noErr(err)
+
+			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")))
+
+			err = db.Close()
+			noErr(err)
+
+			err = os.RemoveAll(dir)
+			noErr(err)
+		})
+
+	}
+}
+
+func BenchmarkRealCPUUsageDataFTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+	dataTransformer := transformer.NewDataTransformer(logger)
+
+	cpuData := dataTransformer.GenCPUData(100000)
+	series := labels.FromStrings("host", "macbook")
+
+	for n := 0; n < b.N; n++ {
+		b.Run("core", func(b *testing.B) {
+			tsdb := ftsdb.NewFTSDB(logger)
+
+			metric := tsdb.CreateMetric("mayur")
+			for _, data := range cpuData {
+				metric.Append(series.Map(), data.Timestamp, data.CPUUsage)
+			}
+
+			query := ftsdb.Query{}
+			query.Series(series.Map())
+			FTSDBIterateAll(tsdb.Find(query))
+		})
 	}
 }
