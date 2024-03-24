@@ -560,3 +560,139 @@ func BenchmarkRealCPUUsageDataFTSDB(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkRealCPUUsageDataConsequentAppendWritePrometheusTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+	dataTransformer := transformer.NewDataTransformer(logger)
+
+	cpuData := dataTransformer.GenCPUData(10000)
+
+	series := labels.FromStrings("host", "macbook")
+	seriesMatcher := labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")
+
+	for n := 0; n < b.N; n++ {
+		b.Run("main", func(b *testing.B) {
+			dir, err := os.MkdirTemp("", "tsdb-test")
+			noErr(err)
+
+			db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+			noErr(err)
+
+			for _, data := range cpuData {
+				app := db.Appender(context.Background())
+				app.Append(0, series, data.Timestamp, data.CPUUsage)
+
+				noErr(app.Commit())
+
+				queries, _ := db.Querier(math.MinInt64, math.MaxInt64)
+				// noErr(err)
+
+				PrometheusTSDBFindIterateAll(queries.Select(context.Background(), false, nil, seriesMatcher))
+			}
+
+			err = db.Close()
+			noErr(err)
+
+			err = os.RemoveAll(dir)
+			noErr(err)
+		})
+	}
+}
+
+func BenchmarkRealCPUUsageDataConsequentAppendWriteFTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+	dataTransformer := transformer.NewDataTransformer(logger)
+
+	cpuData := dataTransformer.GenCPUData(10000)
+	series := labels.FromStrings("host", "macbook")
+
+	for n := 0; n < b.N; n++ {
+		b.Run("core", func(b *testing.B) {
+			tsdb := ftsdb.NewFTSDB(logger)
+
+			query := ftsdb.Query{}
+			query.Series(series.Map())
+
+			metric := tsdb.CreateMetric("mayur")
+			for _, data := range cpuData {
+				metric.Append(series.Map(), data.Timestamp, data.CPUUsage)
+				FTSDBIterateAll(tsdb.Find(query))
+			}
+		})
+	}
+}
+
+func BenchmarkRealCPUUsageRangeDataPrometheusTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+	dataTransformer := transformer.NewDataTransformer(logger)
+
+	cpuData := dataTransformer.GenCPUData(10000)
+
+	series := labels.FromStrings("host", "macbook")
+	seriesMatcher := labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")
+
+	for n := 0; n < b.N; n++ {
+		b.Run("main", func(b *testing.B) {
+			dir, err := os.MkdirTemp("", "tsdb-test")
+			noErr(err)
+
+			db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+			noErr(err)
+
+			app := db.Appender(context.Background())
+
+			for _, data := range cpuData {
+				app.Append(0, series, data.Timestamp, data.CPUUsage)
+			}
+
+			err = app.Commit()
+			noErr(err)
+
+			queries, err := db.Querier(cpuData[5000].Timestamp, math.MaxInt64)
+			noErr(err)
+
+			PrometheusTSDBFindIterateAll(queries.Select(context.Background(), false, nil, seriesMatcher))
+
+			queries, err = db.Querier(math.MinInt64, cpuData[5000].Timestamp)
+			noErr(err)
+
+			PrometheusTSDBFindIterateAll(queries.Select(context.Background(), false, nil, seriesMatcher))
+
+			err = db.Close()
+			noErr(err)
+
+			err = os.RemoveAll(dir)
+			noErr(err)
+		})
+	}
+}
+
+func BenchmarkRealCPUUsageRangeDataFTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+	dataTransformer := transformer.NewDataTransformer(logger)
+
+	cpuData := dataTransformer.GenCPUData(10000)
+	series := labels.FromStrings("host", "macbook")
+
+	for n := 0; n < b.N; n++ {
+		b.Run("core", func(b *testing.B) {
+			tsdb := ftsdb.NewFTSDB(logger)
+
+			metric := tsdb.CreateMetric("mayur")
+			for _, data := range cpuData {
+				metric.Append(series.Map(), data.Timestamp, data.CPUUsage)
+			}
+
+			query := ftsdb.Query{}
+			query.Series(series.Map())
+			query.RangeStart(cpuData[5000].Timestamp)
+
+			FTSDBIterateAll(tsdb.Find(query))
+
+			query.RangeStart(math.MinInt64)
+			query.RangeEnd(cpuData[5000].Timestamp)
+
+			FTSDBIterateAll(tsdb.Find(query))
+		})
+	}
+}
