@@ -59,6 +59,11 @@ db.Delete(rangeStart int64, rangeEnd int64, metric string, series map[string]int
 */
 
 func main() {
+	pprofFTSDB()
+	// pprofPrometheusTSDB()
+}
+
+func _main() {
 	logger, _ := zap.NewProduction()
 
 	logger.Info("process-id", zap.Int("id", os.Getpid()))
