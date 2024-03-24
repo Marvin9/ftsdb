@@ -626,7 +626,7 @@ func BenchmarkRealCPUUsageRangeDataPrometheusTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(10000)
+	cpuData := dataTransformer.GenCPUData(100000)
 
 	series := labels.FromStrings("host", "macbook")
 	seriesMatcher := labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")
@@ -671,7 +671,7 @@ func BenchmarkRealCPUUsageRangeDataFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(10000)
+	cpuData := dataTransformer.GenCPUData(100000)
 	series := labels.FromStrings("host", "macbook")
 
 	for n := 0; n < b.N; n++ {
