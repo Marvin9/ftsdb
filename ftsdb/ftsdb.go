@@ -293,6 +293,12 @@ func (fm *ftsdbMetric) createSeries(series map[string]string) *ftsdbSeries {
 
 	for *seriesItr != nil {
 		matched := true
+		totKeys := len((*seriesItr).series)
+		if totKeys != len(series) {
+			matched = false
+			seriesItr = &(*seriesItr).next
+			continue
+		}
 		for k, v := range series {
 			vv, found := (*seriesItr).series[k]
 
