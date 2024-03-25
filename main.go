@@ -62,26 +62,44 @@ func main() {
 	// pprofFTSDB()
 	// pprofPrometheusTSDB()
 
-	logger, _ := zap.NewDevelopment()
+	// logger, _ := zap.NewDevelopment()
 
-	seriesMac := map[string]string{
-		"host": "macbook",
-	}
-	seriesWin := map[string]string{
-		"host": "wind",
-	}
+	// seriesMac := map[string]string{
+	// 	"host": "macbook",
+	// }
+	// seriesWin := map[string]string{
+	// 	"host": "wind",
+	// }
 
-	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	// tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
-	metric := tsdb.CreateMetric("jay")
+	// metric := tsdb.CreateMetric("jay")
 
-	var i int64
-	for i = 0; i < 100; i++ {
-		metric.Append(seriesMac, int64(i), float64(i))
-		metric.Append(seriesWin, int64(i), float64(i))
-	}
+	// var i int64
+	// for i = 0; i < 1000000; i++ {
+	// 	metric.Append(seriesMac, int64(i), float64(i))
+	// 	metric.Append(seriesWin, int64(i), float64(i))
+	// }
 
-	fmt.Println(tsdb.Commit())
+	// fmt.Println(tsdb.Commit())
+
+	// db, err := tsdb.Open(fmt.Sprintf("%s/tmp", GetIngestionDir()), nil, nil, tsdb.DefaultOptions(), nil)
+	// noErr(err)
+
+	// app := db.Appender(context.Background())
+
+	// seriesMac := labels.FromStrings("host", "macbook")
+	// seriesWin := labels.FromStrings("host", "wind")
+
+	// for i := int64(0); i < 1000000; i++ {
+	// 	app.Append(0, seriesMac, i, float64(i))
+	// 	app.Append(0, seriesWin, i, float64(i))
+
+	// }
+
+	// noErr(app.Commit())
+
+	// noErr(db.Close())
 }
 
 func _main() {

@@ -595,3 +595,70 @@ func AppendPointsWithLabelsPrometheusTSDB(points int) {
 	err = os.RemoveAll(dir)
 	noErr(err)
 }
+
+func HeavyAppendWriteDiskPrometheusTSDB(seriesList []map[string]int, points int) {
+	dir, err := os.MkdirTemp("", "tsdb-test")
+	noErr(err)
+
+	// logger.Info("directory-at", zap.String("dir", dir))
+
+	// Open a TSDB for reading and/or writing.
+	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+	noErr(err)
+
+	// Open an appender for writing.
+	app := db.Appender(context.Background())
+
+	// var ref storage.SeriesRef = 0
+
+	for _, seriesIn := range seriesList {
+		for key, val := range seriesIn {
+			// firstTime := true
+			__series := labels.FromStrings(key, fmt.Sprintf("%d", val))
+
+			i := int64(0)
+			for i = 0; i < int64(points); i++ {
+				app.Append(0, __series, i, float64(i))
+			}
+		}
+	}
+
+	err = app.Commit()
+	noErr(err)
+
+	// querier, err := db.Querier(math.MinInt64, math.MaxInt64)
+	// noErr(err)
+
+	// for _, seriesIn := range seriesList {
+	// 	for key, val := range seriesIn {
+	// 		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprintf("%d", val))))
+	// 	}
+	// }
+	err = db.Close()
+	noErr(err)
+
+	err = os.RemoveAll(dir)
+	noErr(err)
+}
+
+func HeavyAppendWriteDiskFTSDB(logger *zap.Logger, seriesList []map[string]int, points int) {
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+
+	metric := tsdb.CreateMetric("jay")
+
+	for _, seriesIn := range seriesList {
+		for key, val := range seriesIn {
+			__series := map[string]string{}
+
+			__series[key] = fmt.Sprint(val)
+			for i := 0; i < points; i++ {
+				metric.Append(__series, int64(i), float64(i))
+			}
+		}
+	}
+
+	noErr(tsdb.Commit())
+
+	err := os.RemoveAll(GetIngestionDir())
+	noErr(err)
+}
