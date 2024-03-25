@@ -517,3 +517,12 @@ func RealCPUUsageRangeDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUDat
 
 	FTSDBIterateAll(tsdb.Find(query))
 }
+
+func SelectAmongMillionPoints(logger *zap.Logger) {
+	tsdb := ftsdb.NewFTSDB(logger)
+	m := tsdb.CreateMetric("met")
+	for i := 1; i < 1000000; i++ {
+		m.Append(map[string]string{"foo": "bar"}, int64(i), 0.1)
+	}
+
+}

@@ -1,7 +1,6 @@
 package ftsdb
 
 import (
-	"fmt"
 	"math"
 
 	"go.uber.org/zap"
@@ -129,47 +128,6 @@ type DataPointsIterator interface {
 	GetSeries() map[string]string
 	GetTimestamp() int64
 	GetValue() float64
-}
-
-func (mmp *matchedDataPointsRepresentation) GetTimestamp() int64 {
-	return mmp.matched.timestamp
-}
-
-func (mmp *matchedDataPointsRepresentation) GetValue() float64 {
-	return mmp.matched.value
-}
-
-func (mmp *matchedDataPointsRepresentation) GetMetric() string {
-	return mmp.matchedMetric.metric
-}
-
-func (mmp *matchedDataPointsRepresentation) GetSeries() map[string]string {
-	return mmp.matchedSeries.series
-}
-
-func (mmp *matchedDataPointsRepresentation) Next() DataPointsIterator {
-	return newMatchedMetricsPresentationWithIterator(mmp.next)
-}
-
-func (mmp *matchedDataPointsRepresentation) Is() bool {
-	return mmp != nil && mmp.matched != nil
-}
-
-func newMatchedMetricsPresentationWithIterator(mmp *matchedDataPointsRepresentation) DataPointsIterator {
-	return mmp
-}
-
-type matchedDataPointsRepresentation struct {
-	matched       *ftsdbDataPoint
-	next          *matchedDataPointsRepresentation
-	matchedMetric *ftsdbMetric
-	matchedSeries *ftsdbSeries
-}
-
-type matchedSeriesPresentation struct {
-	matched       *ftsdbSeries
-	next          *matchedSeriesPresentation
-	matchedMetric *ftsdbMetric
 }
 
 type Series struct {
@@ -354,10 +312,6 @@ func (fm *ftsdbMetric) createSeries(series map[string]string) *ftsdbSeries {
 	*seriesItr = newSeries(series)
 
 	return *seriesItr
-}
-
-func hashSeries(series map[string]interface{}) string {
-	return fmt.Sprint(series)
 }
 
 type ftsdbSeries struct {

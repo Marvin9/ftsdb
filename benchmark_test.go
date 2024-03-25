@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Marvin9/ftsdb/ftsdb"
 	"github.com/Marvin9/ftsdb/transformer"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
@@ -249,5 +250,25 @@ func BenchmarkRealCPUUsageRangeDataFTSDB(b *testing.B) {
 		b.Run("core", func(b *testing.B) {
 			RealCPUUsageRangeDataFTSDB(logger, cpuData)
 		})
+	}
+}
+
+func BenchmarkSelectAmongMillionPointsFTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+	tsdb := ftsdb.NewFTSDB(logger)
+	m := tsdb.CreateMetric("met")
+	series := map[string]string{
+		"foo": "bar",
+	}
+	for i := 1; i < 1000000; i++ {
+		m.Append(series, int64(i), 0.1)
+	}
+	b.ResetTimer()
+	q := ftsdb.Query{}
+	q.Series(series)
+	q.RangeStart(10)
+	q.RangeEnd(100)
+	for i := 1; i < b.N; i++ {
+		tsdb.Find(q)
 	}
 }
