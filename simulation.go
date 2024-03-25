@@ -106,8 +106,8 @@ func BasicPrometheus() {
 		app.Append(ref, seriesWin, i, float64(i))
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	querier, err := db.Querier(math.MinInt64, math.MaxInt64)
 	noErr(err)
@@ -174,8 +174,8 @@ func RangePrometheusTSDB() {
 
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	querier, err := db.Querier(500000, math.MaxInt64)
 	noErr(err)
@@ -244,8 +244,8 @@ func RangesPrometheusTSDB() {
 		app.Append(ref, seriesWin, i, float64(i))
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	querier, err := db.Querier(500000, 510000)
 	noErr(err)
@@ -318,8 +318,8 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) {
 		}
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	// querier, err := db.Querier(math.MinInt64, math.MaxInt64)
 	// noErr(err)
@@ -386,8 +386,8 @@ func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.L
 		app.Append(0, series, data.Timestamp, data.CPUUsage)
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	querier, err := db.Querier(math.MinInt64, math.MaxInt64)
 	noErr(err)
@@ -430,7 +430,7 @@ func RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger *zap.Logger, cpu
 		app := db.Appender(context.Background())
 		app.Append(0, series, data.Timestamp, data.CPUUsage)
 
-		noErr(app.Commit())
+		// noErr(app.Commit())
 
 		queries, _ := db.Querier(math.MinInt64, math.MaxInt64)
 		// noErr(err)
@@ -476,8 +476,8 @@ func RealCPUUsageRangeDataPrometheusTSDB(logger *zap.Logger, cpuData []transform
 		app.Append(0, series, data.Timestamp, data.CPUUsage)
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	queries, err := db.Querier(cpuData[5000].Timestamp, math.MaxInt64)
 	noErr(err)
@@ -533,8 +533,8 @@ func AppendMillionPointsPrometheusTSDB() {
 		app.Append(0, series, int64(i), 0.1)
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	err = db.Close()
 	noErr(err)
@@ -586,8 +586,8 @@ func AppendPointsWithLabelsPrometheusTSDB(points int) {
 		app.Append(0, labels.FromMap(series), int64(i), 0.1)
 	}
 
-	err = app.Commit()
-	noErr(err)
+	// err = app.Commit()
+	// noErr(err)
 
 	err = db.Close()
 	noErr(err)
