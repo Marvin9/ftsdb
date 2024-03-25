@@ -335,6 +335,10 @@ func newSeries(series map[string]string) *ftsdbSeries {
 }
 
 func seriesMatched(series1 map[string]string, series2 map[string]string) bool {
+	if len(series1) != len(series2) {
+		return false
+	}
+
 	for k, v := range series1 {
 		vv, found := series2[k]
 
