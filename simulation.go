@@ -131,7 +131,7 @@ func BasicFTSDB(logger *zap.Logger) {
 		"host": "wind",
 	}
 
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	metric := tsdb.CreateMetric("jay")
 
@@ -199,7 +199,7 @@ func RangeFTSDB(logger *zap.Logger) {
 		"host": "wind",
 	}
 
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	metric := tsdb.CreateMetric("jay")
 
@@ -269,7 +269,7 @@ func RangesFTSDB(logger *zap.Logger) {
 		"host": "wind",
 	}
 
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	metric := tsdb.CreateMetric("jay")
 
@@ -337,7 +337,7 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) {
 }
 
 func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int, points int) {
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	metric := tsdb.CreateMetric("jay")
 
@@ -404,7 +404,7 @@ func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.L
 func RealCPUUsageDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
 	series := labels.FromStrings("host", "macbook")
 
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	metric := tsdb.CreateMetric("mayur")
 	for _, data := range cpuData {
@@ -448,7 +448,7 @@ func RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger *zap.Logger, cpu
 func RealCPUUsageDataConsequentAppendWriteFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
 	series := labels.FromStrings("host", "macbook")
 
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	query := ftsdb.Query{}
 	query.Series(series.Map())
@@ -499,7 +499,7 @@ func RealCPUUsageRangeDataPrometheusTSDB(logger *zap.Logger, cpuData []transform
 func RealCPUUsageRangeDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
 	series := labels.FromStrings("host", "macbook")
 
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	metric := tsdb.CreateMetric("mayur")
 	for _, data := range cpuData {
@@ -544,7 +544,7 @@ func AppendMillionPointsPrometheusTSDB() {
 }
 
 func AppendMillionPointsFTSDB(logger *zap.Logger) {
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 	m := tsdb.CreateMetric("met")
 	for i := 1; i <= 1000000; i++ {
 		m.Append(map[string]string{"foo": "bar"}, int64(i), 0.1)
@@ -552,7 +552,7 @@ func AppendMillionPointsFTSDB(logger *zap.Logger) {
 }
 
 func AppendPointsWithLabelsFTSDB(logger *zap.Logger, points int) {
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 	m := tsdb.CreateMetric("met")
 	for i := 1; i <= points; i++ {
 		series := map[string]string{}

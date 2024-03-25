@@ -3,6 +3,7 @@ package ftsdb
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"go.uber.org/zap"
@@ -22,7 +23,8 @@ func TestEnsureEverything(t *testing.T) {
 		"host": "wind",
 	}
 
-	tsdb := NewFTSDB(logger)
+	dir, _ := os.Getwd()
+	tsdb := NewFTSDB(logger, filepath.Join(dir, "ingestion"))
 
 	metric := tsdb.CreateMetric("cpu")
 	metric2 := tsdb.CreateMetric("mem")

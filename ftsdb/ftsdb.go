@@ -1,7 +1,12 @@
 package ftsdb
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -42,6 +47,7 @@ type DBInterface interface {
 	Find(query Query) *SeriesIterator
 	CreateMetric(metric string) *ftsdbMetric
 	DisplayMetrics()
+	Commit() error
 }
 
 type ftsdbInMemory struct {
@@ -77,12 +83,14 @@ func (ftsdbim *ftsdbInMemory) createMetric(metric string) *ftsdbMetric {
 type ftsdb struct {
 	inMemory *ftsdbInMemory
 	logger   *zap.Logger
+	dir      string
 }
 
-func NewFTSDB(logger *zap.Logger) DBInterface {
+func NewFTSDB(logger *zap.Logger, dir string) DBInterface {
 	return &ftsdb{
 		logger:   logger,
 		inMemory: newFtsdbInMemory(logger.Named("inMemory")),
+		dir:      dir,
 	}
 }
 
@@ -148,6 +156,137 @@ type SeriesIterator struct {
 	Next               func() *SeriesIterator
 	GetSeries          func() Series
 	DatapointsIterator *DatapointsIterator
+}
+
+type ChunkData struct {
+	Series    int64
+	Datapoint Datapoint
+}
+
+type ChunkMeta struct {
+	MinTimestamp int64
+	MaxTimestamp int64
+	Series       []map[string]string
+}
+
+type Chunk struct {
+	Meta ChunkMeta
+	Data []ChunkData
+}
+
+func (c *Chunk) Encode() []byte {
+	encodedData := strings.Builder{}
+	for _, data := range c.Data {
+		encodedData.WriteString(fmt.Sprintf("%d-%d-%d,", data.Series, data.Datapoint.Timestamp, data.Datapoint.Value))
+	}
+	return []byte(encodedData.String())
+}
+
+func (c *Chunk) Merge(data []ChunkData) {
+	m := len(c.Data)
+	n := len(data)
+	mergedData := make([]ChunkData, m+n)
+	index := m + n - 1
+	i := m - 1
+	j := n - 1
+	for ; i >= 0 && j >= 0; index-- {
+		if c.Data[i].Datapoint.Timestamp >= data[j].Datapoint.Timestamp {
+			mergedData[index] = c.Data[i]
+			i--
+		} else {
+			mergedData[index] = data[j]
+			j--
+		}
+	}
+	for j >= 0 {
+		mergedData[index] = data[j]
+		index--
+		j--
+	}
+
+	c.Data = mergedData
+}
+
+func NewChunk() *Chunk {
+	return &Chunk{
+		Meta: ChunkMeta{
+			MinTimestamp: math.MaxInt64,
+			MaxTimestamp: math.MinInt64,
+			Series:       make([]map[string]string, 0),
+		},
+		Data: make([]ChunkData, 0),
+	}
+}
+
+func (ftsdb *ftsdb) Commit() error {
+	// ftsdb.logger.Debug("commit request")
+	chunk := NewChunk()
+
+	itr := ftsdb.inMemory.metric.series
+
+	seriedIdxInMeta := -1
+	for itr != nil {
+		chunk.Meta.Series = append(chunk.Meta.Series, itr.series)
+		seriedIdxInMeta++
+
+		chunkData := make([]ChunkData, len(itr.dataPoints.arr))
+		for idx, val := range itr.dataPoints.arr {
+			dp := val.(*ftsdbDataPoint)
+			chunkData[idx] = ChunkData{
+				Series: int64(seriedIdxInMeta),
+				Datapoint: Datapoint{
+					Timestamp: dp.timestamp,
+					Value:     int64(dp.value),
+				},
+			}
+
+			if dp.timestamp < chunk.Meta.MinTimestamp {
+				chunk.Meta.MinTimestamp = dp.timestamp
+			} else if dp.timestamp > chunk.Meta.MaxTimestamp {
+				chunk.Meta.MaxTimestamp = dp.timestamp
+			}
+		}
+
+		chunk.Merge(chunkData)
+
+		itr = itr.next
+	}
+
+	// ftsdb.logger.Debug("chunk generated")
+
+	dir := filepath.Join(ftsdb.dir, fmt.Sprintf("%d", chunk.Meta.MinTimestamp))
+
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		return err
+	}
+
+	metafilename := filepath.Join(dir, "meta.json")
+
+	metabytes, err := json.Marshal(chunk.Meta)
+
+	if err != nil {
+		return err
+	}
+
+	// ftsdb.logger.Debug("writing meta", zap.String("filename", metafilename))
+
+	if err = os.WriteFile(metafilename, metabytes, 0666); err != nil {
+		return err
+	}
+
+	chunkfilename := filepath.Join(dir, "chunk")
+
+	chunkbytes := chunk.Encode()
+
+	// ftsdb.logger.Debug("writing chunk", zap.String("chunk", chunkfilename))
+
+	if err = os.WriteFile(chunkfilename, chunkbytes, 0666); err != nil {
+		return err
+	}
+
+	ftsdb.inMemory = newFtsdbInMemory(ftsdb.logger)
+
+	return nil
 }
 
 func (ftsdb *ftsdb) Find(query Query) *SeriesIterator {

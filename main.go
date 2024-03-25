@@ -59,8 +59,29 @@ db.Delete(rangeStart int64, rangeEnd int64, metric string, series map[string]int
 */
 
 func main() {
-	pprofFTSDB()
+	// pprofFTSDB()
 	// pprofPrometheusTSDB()
+
+	logger, _ := zap.NewDevelopment()
+
+	seriesMac := map[string]string{
+		"host": "macbook",
+	}
+	seriesWin := map[string]string{
+		"host": "wind",
+	}
+
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+
+	metric := tsdb.CreateMetric("jay")
+
+	var i int64
+	for i = 0; i < 100; i++ {
+		metric.Append(seriesMac, int64(i), float64(i))
+		metric.Append(seriesWin, int64(i), float64(i))
+	}
+
+	fmt.Println(tsdb.Commit())
 }
 
 func _main() {
@@ -77,7 +98,7 @@ func _main() {
 		"host": "wind",
 	}
 
-	tsdb := ftsdb.NewFTSDB(logger)
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
 	metric := tsdb.CreateMetric("jay")
 
