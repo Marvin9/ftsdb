@@ -291,7 +291,7 @@ func RangesFTSDB(logger *zap.Logger) {
 	FTSDBIterateAll(tsdb.Find(query))
 }
 
-func HeavyAppendPrometheusTSDB(seriesList []map[string]int) {
+func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) {
 	dir, err := os.MkdirTemp("", "tsdb-test")
 	noErr(err)
 
@@ -312,7 +312,7 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int) {
 			__series := labels.FromStrings(key, fmt.Sprintf("%d", val))
 
 			i := int64(0)
-			for i = 0; i < 10000; i++ {
+			for i = 0; i < int64(points); i++ {
 				app.Append(0, __series, i, float64(i))
 			}
 		}
@@ -321,14 +321,14 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int) {
 	err = app.Commit()
 	noErr(err)
 
-	querier, err := db.Querier(math.MinInt64, math.MaxInt64)
-	noErr(err)
+	// querier, err := db.Querier(math.MinInt64, math.MaxInt64)
+	// noErr(err)
 
-	for _, seriesIn := range seriesList {
-		for key, val := range seriesIn {
-			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprintf("%d", val))))
-		}
-	}
+	// for _, seriesIn := range seriesList {
+	// 	for key, val := range seriesIn {
+	// 		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprintf("%d", val))))
+	// 	}
+	// }
 	err = db.Close()
 	noErr(err)
 
@@ -336,7 +336,7 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int) {
 	noErr(err)
 }
 
-func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int) {
+func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int, points int) {
 	tsdb := ftsdb.NewFTSDB(logger)
 
 	metric := tsdb.CreateMetric("jay")
@@ -346,24 +346,24 @@ func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int) {
 			__series := map[string]string{}
 
 			__series[key] = fmt.Sprint(val)
-			for i := 0; i < 10000; i++ {
+			for i := 0; i < points; i++ {
 				metric.Append(__series, int64(i), float64(i))
 			}
 		}
 	}
 
-	query := ftsdb.Query{}
+	// query := ftsdb.Query{}
 
-	for _, seriesIn := range seriesList {
-		for key, val := range seriesIn {
-			__series := map[string]string{}
+	// for _, seriesIn := range seriesList {
+	// 	for key, val := range seriesIn {
+	// 		__series := map[string]string{}
 
-			__series[key] = fmt.Sprintf("%d", val)
-			query.Series(__series)
+	// 		__series[key] = fmt.Sprintf("%d", val)
+	// 		query.Series(__series)
 
-			FTSDBIterateAll(tsdb.Find(query))
-		}
-	}
+	// 		FTSDBIterateAll(tsdb.Find(query))
+	// 	}
+	// }
 }
 
 func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.Logger) {
@@ -518,11 +518,80 @@ func RealCPUUsageRangeDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUDat
 	FTSDBIterateAll(tsdb.Find(query))
 }
 
-func SelectAmongMillionPoints(logger *zap.Logger) {
-	tsdb := ftsdb.NewFTSDB(logger)
-	m := tsdb.CreateMetric("met")
-	for i := 1; i < 1000000; i++ {
-		m.Append(map[string]string{"foo": "bar"}, int64(i), 0.1)
+func AppendMillionPointsPrometheusTSDB() {
+	dir, err := os.MkdirTemp("", "tsdb-test")
+	noErr(err)
+
+	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+	noErr(err)
+
+	app := db.Appender(context.Background())
+
+	series := labels.FromStrings("foo", "bar")
+
+	for i := 0; i <= 1000000; i++ {
+		app.Append(0, series, int64(i), 0.1)
 	}
 
+	err = app.Commit()
+	noErr(err)
+
+	err = db.Close()
+	noErr(err)
+
+	err = os.RemoveAll(dir)
+	noErr(err)
+}
+
+func AppendMillionPointsFTSDB(logger *zap.Logger) {
+	tsdb := ftsdb.NewFTSDB(logger)
+	m := tsdb.CreateMetric("met")
+	for i := 1; i <= 1000000; i++ {
+		m.Append(map[string]string{"foo": "bar"}, int64(i), 0.1)
+	}
+}
+
+func AppendPointsWithLabelsFTSDB(logger *zap.Logger, points int) {
+	tsdb := ftsdb.NewFTSDB(logger)
+	m := tsdb.CreateMetric("met")
+	for i := 1; i <= points; i++ {
+		series := map[string]string{}
+		for j := 1; j <= i; j++ {
+			key := fmt.Sprintf("series-%d", j)
+			value := fmt.Sprintf("%d", rand.Intn(100))
+
+			series[key] = value
+		}
+		m.Append(series, int64(i), 0.1)
+	}
+}
+
+func AppendPointsWithLabelsPrometheusTSDB(points int) {
+	dir, err := os.MkdirTemp("", "tsdb-test")
+	noErr(err)
+
+	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+	noErr(err)
+
+	app := db.Appender(context.Background())
+
+	for i := 1; i <= points; i++ {
+		series := map[string]string{}
+		for j := 1; j <= i; j++ {
+			key := fmt.Sprintf("series-%d", j)
+			value := fmt.Sprintf("%d", rand.Intn(100))
+
+			series[key] = value
+		}
+		app.Append(0, labels.FromMap(series), int64(i), 0.1)
+	}
+
+	err = app.Commit()
+	noErr(err)
+
+	err = db.Close()
+	noErr(err)
+
+	err = os.RemoveAll(dir)
+	noErr(err)
 }

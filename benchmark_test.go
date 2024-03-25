@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Marvin9/ftsdb/ftsdb"
 	"github.com/Marvin9/ftsdb/transformer"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
@@ -153,11 +152,11 @@ func Benchmark_RangesFTSDB(b *testing.B) {
 
 func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 	// logger, _ := zap.NewProduction()
-	seriesList := getHeavySeriesList(100)
+	seriesList := getHeavySeriesList(20)
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
-			HeavyAppendPrometheusTSDB(seriesList)
+			HeavyAppendPrometheusTSDB(seriesList, 100000)
 		})
 	}
 }
@@ -165,11 +164,11 @@ func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 
-	seriesList := getHeavySeriesList(100)
+	seriesList := getHeavySeriesList(20)
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
-			HeavyAppendFTSDB(logger, seriesList)
+			HeavyAppendFTSDB(logger, seriesList, 100000)
 		})
 	}
 }
@@ -253,22 +252,38 @@ func BenchmarkRealCPUUsageRangeDataFTSDB(b *testing.B) {
 	}
 }
 
-func BenchmarkSelectAmongMillionPointsFTSDB(b *testing.B) {
+func BenchmarkAppendMillionPointsPrometheusTSDB(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		b.Run("main", func(b *testing.B) {
+			AppendMillionPointsPrometheusTSDB()
+		})
+	}
+}
+
+func BenchmarkAppendMillionPointsFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
-	tsdb := ftsdb.NewFTSDB(logger)
-	m := tsdb.CreateMetric("met")
-	series := map[string]string{
-		"foo": "bar",
+
+	for n := 0; n < b.N; n++ {
+		b.Run("core", func(b *testing.B) {
+			AppendMillionPointsFTSDB(logger)
+		})
 	}
-	for i := 1; i < 1000000; i++ {
-		m.Append(series, int64(i), 0.1)
+}
+
+func BenchmarkAppendHundredPointsWithLabelsPrometheusTSDB(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		b.Run("main", func(b *testing.B) {
+			AppendPointsWithLabelsPrometheusTSDB(10000)
+		})
 	}
-	b.ResetTimer()
-	q := ftsdb.Query{}
-	q.Series(series)
-	q.RangeStart(10)
-	q.RangeEnd(100)
-	for i := 1; i < b.N; i++ {
-		tsdb.Find(q)
+}
+
+func BenchmarkAppendHundredPointsWithLabelsFTSDB(b *testing.B) {
+	logger, _ := zap.NewProduction()
+
+	for n := 0; n < b.N; n++ {
+		b.Run("core", func(b *testing.B) {
+			AppendPointsWithLabelsFTSDB(logger, 10000)
+		})
 	}
 }
