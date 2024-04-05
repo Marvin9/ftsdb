@@ -1,4 +1,4 @@
-package main
+package experiments
 
 import (
 	"context"
@@ -161,17 +161,6 @@ func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 	}
 }
 
-func Benchmark_HeavyAppendWriteDiskPrometheusTSDB(b *testing.B) {
-	// logger, _ := zap.NewProduction()
-	seriesList := getHeavySeriesList(20)
-
-	for n := 0; n < b.N; n++ {
-		b.Run("core", func(b *testing.B) {
-			HeavyAppendWriteDiskPrometheusTSDB(seriesList, 100000)
-		})
-	}
-}
-
 func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 
@@ -180,6 +169,17 @@ func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
 			HeavyAppendFTSDB(logger, seriesList, 100000)
+		})
+	}
+}
+
+func Benchmark_HeavyAppendWriteDiskPrometheusTSDB(b *testing.B) {
+	// logger, _ := zap.NewProduction()
+	seriesList := getHeavySeriesList(20)
+
+	for n := 0; n < b.N; n++ {
+		b.Run("core", func(b *testing.B) {
+			HeavyAppendWriteDiskPrometheusTSDB(seriesList, 100000)
 		})
 	}
 }
