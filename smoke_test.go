@@ -216,4 +216,5 @@ func TestSmoke(t *testing.T) {
 	firstFtsdb = experiments.FTSDBIterateAll(fftsdb.Find(query))
 
 	require.Equal(t, firstProm, firstFtsdb)
+	os.RemoveAll(experiments.GetIngestionDir())
 }
