@@ -44,7 +44,7 @@ func (s *stats) StartMonitoring(
 		for {
 			select {
 			case <-stopMonitoring:
-				s.RunningTime = int(time.Since(start).Microseconds())
+				s.RunningTime = int(time.Since(start).Milliseconds())
 				return
 			default:
 				perc, _ := cpu.Percent(0, true)

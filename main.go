@@ -14,7 +14,7 @@ func main() {
 		"./results/append-100-points-in-2-series.html",
 		100,
 		func() string {
-			for i := 0; i < 1000; i++ {
+			for i := 0; i < 10; i++ {
 				experiments.BasicFTSDB(logger)
 			}
 			return ""
@@ -75,7 +75,7 @@ func main() {
 	experiments.Experiment(
 		"Append 100K data points in 20 series and write to disk",
 		"./results/append-100k-dp-in-20-series-with-disk.html",
-		100,
+		50,
 		func() string {
 			experiments.HeavyAppendWriteDiskFTSDB(logger, seriesList, 100000)
 			return ""
@@ -92,7 +92,7 @@ func main() {
 	experiments.Experiment(
 		"100K CPU Usage",
 		"./results/100k-cpu-usage.html",
-		100,
+		50,
 		func() string {
 			experiments.RealCPUUsageDataFTSDB(logger, cpuData)
 			return ""
@@ -105,7 +105,7 @@ func main() {
 	experiments.Experiment(
 		"Consequent writes",
 		"./results/cpu-usage-consequent-writes.html",
-		100,
+		50,
 		func() string {
 			experiments.RealCPUUsageDataConsequentAppendWriteFTSDB(logger, cpuData[:10000])
 			return ""
@@ -118,7 +118,7 @@ func main() {
 	experiments.Experiment(
 		"Range data",
 		"./results/cpu-usage-range-data.html",
-		100,
+		50,
 		func() string {
 			experiments.RealCPUUsageRangeDataFTSDB(logger, cpuData)
 			return ""
@@ -131,7 +131,7 @@ func main() {
 	experiments.Experiment(
 		"Append million points",
 		"./results/append-million-points.html",
-		100,
+		50,
 		func() string {
 			experiments.AppendMillionPointsFTSDB(logger)
 			return ""

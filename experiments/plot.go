@@ -58,7 +58,10 @@ func Plot(plotOpts PlotOpts) {
 
 	CPULine.SetXAxis(xAxis).
 		AddSeries("ftsdb-cpu", ftsdbSeriesCPU).
-		AddSeries("prometheus-cpu", promSeriesCPU)
+		AddSeries("prometheus-cpu", promSeriesCPU).
+		SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{
+			Smooth: true,
+		}))
 
 	// ------------------------
 
@@ -76,19 +79,20 @@ func Plot(plotOpts PlotOpts) {
 
 	for i := 0; i < minXAxis; i++ {
 		ftsdbSeriesMemory = append(ftsdbSeriesMemory, opts.LineData{
-			Value: ftsdbStats.Data[i].Mem.Alloc,
-			Name:  fmt.Sprintf("%.2fMB", float64(ftsdbStats.Data[i].Mem.Alloc)*0.000001),
+			Value: toMegaBytes(int(ftsdbStats.Data[i].Mem.Alloc)),
 		})
 
 		promSeriesMemory = append(promSeriesMemory, opts.LineData{
-			Value: prometheusStats.Data[i].Mem.Alloc,
-			Name:  fmt.Sprintf("%.2fMB", float64(prometheusStats.Data[i].Mem.Alloc)*0.000001),
+			Value: toMegaBytes(int(prometheusStats.Data[i].Mem.Alloc)),
 		})
 	}
 
 	MemoryLine.SetXAxis(xAxis).
-		AddSeries("ftsdb-memoery", ftsdbSeriesMemory).
-		AddSeries("prometheus-memory", promSeriesMemory)
+		AddSeries("ftsdb-memory", ftsdbSeriesMemory).
+		AddSeries("prometheus-memory", promSeriesMemory).
+		SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{
+			Smooth: true,
+		}))
 
 	// ----------------------------
 
@@ -106,17 +110,20 @@ func Plot(plotOpts PlotOpts) {
 
 	for i := 0; i < minXAxis; i++ {
 		ftsdbHeap = append(ftsdbHeap, opts.LineData{
-			Value: ftsdbStats.Data[i].Mem.Mallocs,
+			Value: toMegaBytes(int(ftsdbStats.Data[i].Mem.Mallocs)),
 		})
 
 		promHeap = append(promHeap, opts.LineData{
-			Value: prometheusStats.Data[i].Mem.Mallocs,
+			Value: toMegaBytes(int(prometheusStats.Data[i].Mem.Mallocs)),
 		})
 	}
 
 	HeapLine.SetXAxis(xAxis).
 		AddSeries("ftsdb-heap", ftsdbHeap).
-		AddSeries("prometheus-heap", promHeap)
+		AddSeries("prometheus-heap", promHeap).
+		SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{
+			Smooth: true,
+		}))
 
 	DiskSize := charts.NewBar()
 
@@ -130,10 +137,10 @@ func Plot(plotOpts PlotOpts) {
 	DiskSize.SetXAxis([]string{"ftsdb-disk", "prometheus-disk"}).
 		AddSeries("disk-size", []opts.BarData{
 			{
-				Value: ftsdbStats.DiskSize,
+				Value: toMegaBytes(ftsdbStats.DiskSize),
 			},
 			{
-				Value: prometheusStats.DiskSize,
+				Value: toMegaBytes(prometheusStats.DiskSize),
 			},
 		})
 
@@ -148,12 +155,12 @@ func Plot(plotOpts PlotOpts) {
 	)
 
 	RunningTime.SetXAxis([]string{"ftsdb-latency", "prometheus-latency"}).
-		AddSeries("latencye", []opts.BarData{
+		AddSeries("latency", []opts.BarData{
 			{
-				Value: ftsdbStats.RunningTime,
+				Value: toSeconds(ftsdbStats.RunningTime),
 			},
 			{
-				Value: prometheusStats.RunningTime,
+				Value: toSeconds(prometheusStats.RunningTime),
 			},
 		})
 

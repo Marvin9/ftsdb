@@ -83,3 +83,11 @@ func getFolderSize(folderPath string) (int64, error) {
 
 	return folderSize, nil
 }
+
+func toMegaBytes(n int) float64 {
+	return float64(n) * 0.000001
+}
+
+func toSeconds(n int) float64 {
+	return float64(n) * 0.001
+}
