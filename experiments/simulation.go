@@ -51,7 +51,7 @@ func getHeavySeries(_i int) map[string]int {
 	return series
 }
 
-func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) {
+func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) int {
 	tot := 0
 	var __series labels.Labels
 	for selector.Next() {
@@ -67,10 +67,12 @@ func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) {
 			it.At()
 		}
 	}
+
+	return tot
 	// fmt.Println(tot)
 }
 
-func FTSDBIterateAll(ss *ftsdb.SeriesIterator) {
+func FTSDBIterateAll(ss *ftsdb.SeriesIterator) int {
 	tot := 0
 	for ss.Next() != nil {
 		it := ss.DatapointsIterator
@@ -81,6 +83,7 @@ func FTSDBIterateAll(ss *ftsdb.SeriesIterator) {
 			tot++
 		}
 	}
+	return tot
 	// fmt.Println(tot)
 }
 

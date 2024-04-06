@@ -97,7 +97,7 @@ func NewFTSDB(logger *zap.Logger, dir string) DBInterface {
 		logger:     logger,
 		inMemory:   newFtsdbInMemory(logger.Named("inMemory")),
 		dir:        dir,
-		flushLimit: 10000,
+		flushLimit: 1000,
 	}
 }
 
