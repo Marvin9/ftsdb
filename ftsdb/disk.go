@@ -81,6 +81,8 @@ func ReadSeries(chunk int, chunkMeta ChunkMeta, series map[string]string) []Chun
 				newChunkData.Datapoint.Value = value
 				token.Reset()
 				chunkData = append(chunkData, newChunkData)
+			case "\n":
+				token.Reset()
 			default:
 				token.WriteString(curr)
 			}
@@ -126,4 +128,34 @@ func parseRawString(raw string, lineNumber int) ([]ChunkData, error) {
 	}
 
 	return result, nil
+}
+
+func DeltaEncodeChunk(chunks []ChunkData) []ChunkData {
+	compressed := make([]ChunkData, len(chunks))
+
+	for idx, data := range chunks {
+		compressed[idx] = data
+
+		if idx != 0 {
+			compressed[idx].Datapoint.Timestamp = compressed[idx].Datapoint.Timestamp - chunks[idx-1].Datapoint.Timestamp
+		}
+	}
+
+	return compressed
+}
+
+func DeltaDecodeChunk(chunks []ChunkData) []ChunkData {
+	orig := make([]ChunkData, len(chunks))
+
+	prev := 0
+
+	for idx, data := range chunks {
+		orig[idx] = data
+
+		prev += int(data.Datapoint.Timestamp)
+
+		orig[idx].Datapoint.Timestamp = int64(prev)
+	}
+
+	return orig
 }

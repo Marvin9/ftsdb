@@ -26,6 +26,7 @@ func TestEnsureEverything(t *testing.T) {
 
 	dir, _ := os.Getwd()
 	tsdb := NewFTSDB(logger, filepath.Join(dir, "ingestion"))
+	tsdb.SetFlushLimit(1)
 
 	metric := tsdb.CreateMetric("cpu")
 

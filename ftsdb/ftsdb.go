@@ -52,6 +52,7 @@ type DBInterface interface {
 	DisplayMetrics()
 	Commit() error
 	Close()
+	SetFlushLimit(flush int)
 }
 
 type ftsdbInMemory struct {
@@ -85,16 +86,24 @@ func (ftsdbim *ftsdbInMemory) createMetric(metric string) *ftsdbMetric {
 }
 
 type ftsdb struct {
-	inMemory *ftsdbInMemory
-	logger   *zap.Logger
-	dir      string
+	inMemory   *ftsdbInMemory
+	logger     *zap.Logger
+	dir        string
+	flushLimit int
 }
 
 func NewFTSDB(logger *zap.Logger, dir string) DBInterface {
 	return &ftsdb{
-		logger:   logger,
-		inMemory: newFtsdbInMemory(logger.Named("inMemory")),
-		dir:      dir,
+		logger:     logger,
+		inMemory:   newFtsdbInMemory(logger.Named("inMemory")),
+		dir:        dir,
+		flushLimit: 10000,
+	}
+}
+
+func (ftsdb *ftsdb) SetFlushLimit(limit int) {
+	if limit > 0 {
+		ftsdb.flushLimit = limit
 	}
 }
 
@@ -185,7 +194,7 @@ func (c *Chunk) Encode() []byte {
 	lines := make([]strings.Builder, totalDistinctSeriesInChunk)
 
 	for _, data := range c.Data {
-		lines[int(data.Series)].WriteString(fmt.Sprintf("%d-%d,", data.Datapoint.Timestamp, data.Datapoint.Value))
+		lines[int(data.Series)].WriteString(fmt.Sprintf("%s-%s,", strconv.Itoa(int(data.Datapoint.Timestamp)), strconv.Itoa(int(data.Datapoint.Value))))
 	}
 
 	for idx, line := range lines {
@@ -235,7 +244,7 @@ func NewChunk() *Chunk {
 }
 
 func (ftsdb *ftsdb) Commit() error {
-	if ftsdb.inMemory.metric.size < 1000 {
+	if ftsdb.inMemory.metric.size < int64(ftsdb.flushLimit) {
 		return nil
 	}
 
@@ -267,7 +276,9 @@ func (ftsdb *ftsdb) Commit() error {
 			}
 		}
 
-		chunk.Merge(chunkData)
+		compressed := DeltaEncodeChunk(chunkData)
+
+		chunk.Merge(compressed)
 
 		itr = itr.next
 	}
@@ -404,7 +415,7 @@ func (ftsdb *ftsdb) Find(query Query) *SeriesIterator {
 			dataPointsIterator++
 			if dataPointsIterator == 0 {
 				chunkIndex := minTimestamps[chunkIterator]
-				datapoints = ReadSeries(chunkIndex, metaCache[chunkIndex], seriesToIterate[seriesIterator])
+				datapoints = DeltaDecodeChunk(ReadSeries(chunkIndex, metaCache[chunkIndex], seriesToIterate[seriesIterator]))
 			}
 
 			if dataPointsIterator >= len(datapoints) {
