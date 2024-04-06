@@ -13,15 +13,18 @@ func main() {
 		"Append in 10000 points in 2 series",
 		"./results/append-100-points-in-2-series.html",
 		100,
-		func() {
+		func() string {
 			for i := 0; i < 1000; i++ {
 				experiments.BasicFTSDB(logger)
 			}
+			return ""
 		},
-		func() {
-			for i := 0; i < 1000; i++ {
-				experiments.BasicPrometheus()
+		func() string {
+			var file string
+			for i := 0; i < 10; i++ {
+				file = experiments.BasicPrometheus()
 			}
+			return file
 		},
 	)
 
@@ -29,11 +32,12 @@ func main() {
 		"Append in 1000000 points in 2 series and making range start call",
 		"./results/append-100-points-in-2-series-and-range-start-query.html",
 		50,
-		func() {
+		func() string {
 			experiments.RangeFTSDB(logger)
+			return ""
 		},
-		func() {
-			experiments.RangePrometheusTSDB()
+		func() string {
+			return experiments.RangePrometheusTSDB()
 		},
 	)
 
@@ -41,11 +45,12 @@ func main() {
 		"Append in 1000000 points in 2 series and making range start and end call",
 		"./results/append-100-points-in-2-series-and-range-start-and-end-query.html",
 		50,
-		func() {
+		func() string {
 			experiments.RangesFTSDB(logger)
+			return ""
 		},
-		func() {
-			experiments.RangesPrometheusTSDB()
+		func() string {
+			return experiments.RangesPrometheusTSDB()
 		},
 	)
 
@@ -55,13 +60,13 @@ func main() {
 		"Append 100K data points in 20 series",
 		"./results/append-100k-dp-in-20-series.html",
 		50,
-		func() {
+		func() string {
 			experiments.HeavyAppendFTSDB(logger, seriesList, 100000)
+			return ""
 
 		},
-		func() {
-			experiments.HeavyAppendPrometheusTSDB(seriesList, 100000)
-
+		func() string {
+			return experiments.HeavyAppendPrometheusTSDB(seriesList, 100000)
 		},
 	)
 
@@ -71,12 +76,12 @@ func main() {
 		"Append 100K data points in 20 series and write to disk",
 		"./results/append-100k-dp-in-20-series-with-disk.html",
 		100,
-		func() {
+		func() string {
 			experiments.HeavyAppendWriteDiskFTSDB(logger, seriesList, 100000)
-
+			return ""
 		},
-		func() {
-			experiments.HeavyAppendWriteDiskPrometheusTSDB(seriesList, 100000)
+		func() string {
+			return experiments.HeavyAppendWriteDiskPrometheusTSDB(seriesList, 100000)
 		},
 	)
 
@@ -88,11 +93,12 @@ func main() {
 		"100K CPU Usage",
 		"./results/100k-cpu-usage.html",
 		100,
-		func() {
+		func() string {
 			experiments.RealCPUUsageDataFTSDB(logger, cpuData)
+			return ""
 		},
-		func() {
-			experiments.RealCPUUsageDataPrometheusTSDB(cpuData, logger)
+		func() string {
+			return experiments.RealCPUUsageDataPrometheusTSDB(cpuData, logger)
 		},
 	)
 
@@ -100,11 +106,12 @@ func main() {
 		"Consequent writes",
 		"./results/cpu-usage-consequent-writes.html",
 		100,
-		func() {
+		func() string {
 			experiments.RealCPUUsageDataConsequentAppendWriteFTSDB(logger, cpuData[:10000])
+			return ""
 		},
-		func() {
-			experiments.RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger, cpuData[:10000])
+		func() string {
+			return experiments.RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger, cpuData[:10000])
 		},
 	)
 
@@ -112,11 +119,12 @@ func main() {
 		"Range data",
 		"./results/cpu-usage-range-data.html",
 		100,
-		func() {
+		func() string {
 			experiments.RealCPUUsageRangeDataFTSDB(logger, cpuData)
+			return ""
 		},
-		func() {
-			experiments.RealCPUUsageRangeDataPrometheusTSDB(logger, cpuData)
+		func() string {
+			return experiments.RealCPUUsageRangeDataPrometheusTSDB(logger, cpuData)
 		},
 	)
 
@@ -124,11 +132,12 @@ func main() {
 		"Append million points",
 		"./results/append-million-points.html",
 		100,
-		func() {
+		func() string {
 			experiments.AppendMillionPointsFTSDB(logger)
+			return ""
 		},
-		func() {
-			experiments.AppendMillionPointsPrometheusTSDB()
+		func() string {
+			return experiments.AppendMillionPointsPrometheusTSDB()
 		},
 	)
 
@@ -136,11 +145,12 @@ func main() {
 		"Append 10k points with label",
 		"./results/append-million-points-with-label.html",
 		100,
-		func() {
+		func() string {
 			experiments.AppendPointsWithLabelsFTSDB(logger, 10000)
+			return ""
 		},
-		func() {
-			experiments.AppendPointsWithLabelsPrometheusTSDB(10000)
+		func() string {
+			return experiments.AppendPointsWithLabelsPrometheusTSDB(10000)
 		},
 	)
 }

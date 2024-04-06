@@ -21,6 +21,7 @@ type stats struct {
 	Data []Data
 	// time took to run in milliseconds
 	RunningTime int
+	DiskSize    int
 }
 
 func NewStats() *stats {

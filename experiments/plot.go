@@ -118,11 +118,40 @@ func Plot(plotOpts PlotOpts) {
 		AddSeries("ftsdb-heap", ftsdbHeap).
 		AddSeries("prometheus-heap", promHeap)
 
+	DiskSize := charts.NewBar()
+
+	DiskSize.SetGlobalOptions(
+		charts.WithTitleOpts(opts.Title{
+			Title:    title,
+			Subtitle: subtitle,
+		}),
+	)
+
+	DiskSize.SetXAxis([]string{"ftsdb", "prometheus"}).
+		AddSeries("disk-size", []opts.BarData{
+			{
+				Value: ftsdbStats.DiskSize,
+			},
+			{
+				Value: prometheusStats.DiskSize,
+			},
+		})
+
 	f, err := os.Create(plotOpts.Filepath)
 
 	noErr(err)
 
-	page.AddCharts(CPULine, MemoryLine, HeapLine)
+	charts := []components.Charter{
+		CPULine,
+		MemoryLine,
+		HeapLine,
+	}
+
+	if prometheusStats.DiskSize > 0 && ftsdbStats.DiskSize > 0 {
+		charts = append(charts, DiskSize)
+	}
+
+	page.AddCharts(charts...)
 
 	page.Render(f)
 

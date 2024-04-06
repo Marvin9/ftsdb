@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"os"
 
 	"github.com/Marvin9/ftsdb/ftsdb"
+	"github.com/Marvin9/ftsdb/shared"
 	"github.com/Marvin9/ftsdb/transformer"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
@@ -87,9 +87,8 @@ func FTSDBIterateAll(ss *ftsdb.SeriesIterator) int {
 	// fmt.Println(tot)
 }
 
-func BasicPrometheus() {
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+func BasicPrometheus() string {
+	dir := shared.GetPromIngestionDir()
 
 	// logger.Info("directory-at", zap.String("dir", dir))
 
@@ -124,8 +123,7 @@ func BasicPrometheus() {
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func BasicFTSDB(logger *zap.Logger) {
@@ -160,9 +158,8 @@ func BasicFTSDB(logger *zap.Logger) {
 	FTSDBIterateAll(tsdb.Find(query))
 }
 
-func RangePrometheusTSDB() {
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+func RangePrometheusTSDB() string {
+	dir := shared.GetPromIngestionDir()
 
 	// logger.Info("directory-at", zap.String("dir", dir))
 
@@ -196,8 +193,7 @@ func RangePrometheusTSDB() {
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func RangeFTSDB(logger *zap.Logger) {
@@ -232,9 +228,8 @@ func RangeFTSDB(logger *zap.Logger) {
 	FTSDBIterateAll(tsdb.Find(query))
 }
 
-func RangesPrometheusTSDB() {
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+func RangesPrometheusTSDB() string {
+	dir := shared.GetPromIngestionDir()
 
 	// logger.Info("directory-at", zap.String("dir", dir))
 
@@ -269,8 +264,7 @@ func RangesPrometheusTSDB() {
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func RangesFTSDB(logger *zap.Logger) {
@@ -306,9 +300,8 @@ func RangesFTSDB(logger *zap.Logger) {
 	FTSDBIterateAll(tsdb.Find(query))
 }
 
-func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) {
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) string {
+	dir := shared.GetPromIngestionDir()
 
 	// logger.Info("directory-at", zap.String("dir", dir))
 
@@ -348,8 +341,7 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) {
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int, points int) {
@@ -385,12 +377,10 @@ func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int, points in
 	}
 }
 
-func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.Logger) {
+func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.Logger) string {
 	series := labels.FromStrings("host", "macbook")
 
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	// logger.Info(dir)
-	noErr(err)
+	dir := shared.GetPromIngestionDir()
 
 	// logger.Info("directory-at", zap.String("dir", dir))
 
@@ -416,8 +406,7 @@ func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.L
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func RealCPUUsageDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
@@ -431,18 +420,17 @@ func RealCPUUsageDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
 		metric.Append(series.Map(), data.Timestamp, data.CPUUsage)
 	}
 
-	tsdb.Commit()
+	noErr(tsdb.Commit())
 	query := ftsdb.Query{}
 	query.Series(series.Map())
 	FTSDBIterateAll(tsdb.Find(query))
 }
 
-func RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
+func RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger *zap.Logger, cpuData []transformer.CPUData) string {
 	series := labels.FromStrings("host", "macbook")
 	seriesMatcher := labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")
 
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+	dir := shared.GetPromIngestionDir()
 
 	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
 	noErr(err)
@@ -462,8 +450,7 @@ func RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger *zap.Logger, cpu
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func RealCPUUsageDataConsequentAppendWriteFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
@@ -483,12 +470,11 @@ func RealCPUUsageDataConsequentAppendWriteFTSDB(logger *zap.Logger, cpuData []tr
 	}
 }
 
-func RealCPUUsageRangeDataPrometheusTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
+func RealCPUUsageRangeDataPrometheusTSDB(logger *zap.Logger, cpuData []transformer.CPUData) string {
 	series := labels.FromStrings("host", "macbook")
 	seriesMatcher := labels.MustNewMatcher(labels.MatchEqual, "host", "macbook")
 
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+	dir := shared.GetPromIngestionDir()
 
 	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
 	noErr(err)
@@ -515,8 +501,7 @@ func RealCPUUsageRangeDataPrometheusTSDB(logger *zap.Logger, cpuData []transform
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func RealCPUUsageRangeDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
@@ -544,9 +529,8 @@ func RealCPUUsageRangeDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUDat
 	FTSDBIterateAll(tsdb.Find(query))
 }
 
-func AppendMillionPointsPrometheusTSDB() {
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+func AppendMillionPointsPrometheusTSDB() string {
+	dir := shared.GetPromIngestionDir()
 
 	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
 	noErr(err)
@@ -565,8 +549,7 @@ func AppendMillionPointsPrometheusTSDB() {
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func AppendMillionPointsFTSDB(logger *zap.Logger) {
@@ -594,9 +577,8 @@ func AppendPointsWithLabelsFTSDB(logger *zap.Logger, points int) {
 	}
 }
 
-func AppendPointsWithLabelsPrometheusTSDB(points int) {
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+func AppendPointsWithLabelsPrometheusTSDB(points int) string {
+	dir := shared.GetPromIngestionDir()
 
 	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
 	noErr(err)
@@ -620,13 +602,11 @@ func AppendPointsWithLabelsPrometheusTSDB(points int) {
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
-func HeavyAppendWriteDiskPrometheusTSDB(seriesList []map[string]int, points int) {
-	dir, err := os.MkdirTemp("", "tsdb-test")
-	noErr(err)
+func HeavyAppendWriteDiskPrometheusTSDB(seriesList []map[string]int, points int) string {
+	dir := shared.GetPromIngestionDir()
 
 	// logger.Info("directory-at", zap.String("dir", dir))
 
@@ -657,8 +637,7 @@ func HeavyAppendWriteDiskPrometheusTSDB(seriesList []map[string]int, points int)
 	err = db.Close()
 	noErr(err)
 
-	err = os.RemoveAll(dir)
-	noErr(err)
+	return dir
 }
 
 func HeavyAppendWriteDiskFTSDB(logger *zap.Logger, seriesList []map[string]int, points int) {
@@ -679,7 +658,4 @@ func HeavyAppendWriteDiskFTSDB(logger *zap.Logger, seriesList []map[string]int, 
 	}
 
 	noErr(tsdb.Commit())
-
-	err := os.RemoveAll(GetIngestionDir())
-	noErr(err)
 }

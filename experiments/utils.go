@@ -2,6 +2,7 @@ package experiments
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -21,14 +22,19 @@ func Experiment(
 	filepath string,
 	statsInterval int,
 	ftsdbExecutor,
-	prometheusExecutor func(),
+	prometheusExecutor func() string,
 ) {
+	noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+	noErr(os.RemoveAll(GetIngestionDir()))
+
 	runtime.GC()
 	prometheusStats := NewStats()
 	stop := prometheusStats.StartMonitoring(statsInterval)
-	prometheusExecutor()
+	dir := prometheusExecutor()
 	time.Sleep(time.Second)
 	stop()
+	size, _ := getFolderSize(dir)
+	prometheusStats.DiskSize = int(size)
 	runtime.GC()
 
 	ftsdbStats := NewStats()
@@ -36,7 +42,11 @@ func Experiment(
 	ftsdbExecutor()
 	time.Sleep(time.Second)
 	stop()
+	size, _ = getFolderSize(shared.GetIngestionDir())
+	ftsdbStats.DiskSize = int(size)
 	runtime.GC()
+
+	// fmt.Println(prometheusStats.DiskSize, ftsdbStats.DiskSize)
 
 	Plot(PlotOpts{
 		Subtitle:        subtitle,
@@ -45,5 +55,27 @@ func Experiment(
 		Filepath:        filepath,
 	})
 
-	os.RemoveAll(GetIngestionDir())
+	noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+	noErr(os.RemoveAll(GetIngestionDir()))
+}
+
+func getFolderSize(folderPath string) (int64, error) {
+	var folderSize int64
+
+	// Walk through the folder and its subfolders
+	err := filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// Add file size to folder size
+		if !info.IsDir() {
+			folderSize += info.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return folderSize, nil
 }
