@@ -138,6 +138,7 @@ func DeltaEncodeChunk(chunks []ChunkData) []ChunkData {
 
 		if idx != 0 {
 			compressed[idx].Datapoint.Timestamp = compressed[idx].Datapoint.Timestamp - chunks[idx-1].Datapoint.Timestamp
+			compressed[idx].Datapoint.Value = compressed[idx].Datapoint.Value - chunks[idx-1].Datapoint.Value
 		}
 	}
 
@@ -148,13 +149,16 @@ func DeltaDecodeChunk(chunks []ChunkData) []ChunkData {
 	orig := make([]ChunkData, len(chunks))
 
 	prev := 0
+	prevVal := 0
 
 	for idx, data := range chunks {
 		orig[idx] = data
 
 		prev += int(data.Datapoint.Timestamp)
+		prevVal += int(data.Datapoint.Value)
 
 		orig[idx].Datapoint.Timestamp = int64(prev)
+		orig[idx].Datapoint.Value = int64(prevVal)
 	}
 
 	return orig

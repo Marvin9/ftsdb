@@ -50,21 +50,25 @@ func TestDeltaEncodeChunks(t *testing.T) {
 		{
 			Datapoint: Datapoint{
 				Timestamp: 100,
+				Value:     20,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 200,
+				Value:     10,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 201,
+				Value:     15,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 202,
+				Value:     100,
 			},
 		},
 	})
@@ -73,71 +77,81 @@ func TestDeltaEncodeChunks(t *testing.T) {
 		{
 			Datapoint: Datapoint{
 				Timestamp: 100,
+				Value:     20,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 100,
+				Value:     -10,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 1,
+				Value:     5,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 1,
+				Value:     85,
 			},
 		},
 	}, enc)
 }
 
 func TestDeltaDecodeChunks(t *testing.T) {
-	orig := DeltaDecodeChunk(
-		[]ChunkData{
-			{
-				Datapoint: Datapoint{
-					Timestamp: 100,
-				},
-			},
-			{
-				Datapoint: Datapoint{
-					Timestamp: 100,
-				},
-			},
-			{
-				Datapoint: Datapoint{
-					Timestamp: 1,
-				},
-			},
-			{
-				Datapoint: Datapoint{
-					Timestamp: 1,
-				},
+	orig := DeltaDecodeChunk([]ChunkData{
+		{
+			Datapoint: Datapoint{
+				Timestamp: 100,
+				Value:     20,
 			},
 		},
-	)
+		{
+			Datapoint: Datapoint{
+				Timestamp: 100,
+				Value:     -10,
+			},
+		},
+		{
+			Datapoint: Datapoint{
+				Timestamp: 1,
+				Value:     5,
+			},
+		},
+		{
+			Datapoint: Datapoint{
+				Timestamp: 1,
+				Value:     85,
+			},
+		},
+	})
 
 	require.Equal(t, []ChunkData{
 		{
 			Datapoint: Datapoint{
 				Timestamp: 100,
+				Value:     20,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 200,
+				Value:     10,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 201,
+				Value:     15,
 			},
 		},
 		{
 			Datapoint: Datapoint{
 				Timestamp: 202,
+				Value:     100,
 			},
 		},
 	}, orig)

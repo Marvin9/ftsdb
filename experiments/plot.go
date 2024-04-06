@@ -127,13 +127,33 @@ func Plot(plotOpts PlotOpts) {
 		}),
 	)
 
-	DiskSize.SetXAxis([]string{"ftsdb", "prometheus"}).
+	DiskSize.SetXAxis([]string{"ftsdb-disk", "prometheus-disk"}).
 		AddSeries("disk-size", []opts.BarData{
 			{
 				Value: ftsdbStats.DiskSize,
 			},
 			{
 				Value: prometheusStats.DiskSize,
+			},
+		})
+
+	// running time
+	RunningTime := charts.NewBar()
+
+	RunningTime.SetGlobalOptions(
+		charts.WithTitleOpts(opts.Title{
+			Title:    title,
+			Subtitle: subtitle,
+		}),
+	)
+
+	RunningTime.SetXAxis([]string{"ftsdb-latency", "prometheus-latency"}).
+		AddSeries("latencye", []opts.BarData{
+			{
+				Value: ftsdbStats.RunningTime,
+			},
+			{
+				Value: prometheusStats.RunningTime,
 			},
 		})
 
@@ -144,6 +164,7 @@ func Plot(plotOpts PlotOpts) {
 	charts := []components.Charter{
 		CPULine,
 		MemoryLine,
+		RunningTime,
 		HeapLine,
 	}
 

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Marvin9/ftsdb/shared"
@@ -69,7 +70,10 @@ func getFolderSize(folderPath string) (int64, error) {
 		}
 		// Add file size to folder size
 		if !info.IsDir() {
-			folderSize += info.Size()
+			if (folderPath == shared.GetPromIngestionDir() && strings.Contains(path, "chunks")) ||
+				(folderPath != shared.GetPromIngestionDir()) {
+				folderSize += info.Size()
+			}
 		}
 		return nil
 	})
