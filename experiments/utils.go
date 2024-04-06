@@ -2,20 +2,18 @@ package experiments
 
 import (
 	"os"
-	"path/filepath"
 	"runtime"
+	"time"
+
+	"github.com/Marvin9/ftsdb/shared"
 )
 
 func GetIngestionDir() string {
-	dir, _ := os.Getwd()
-	dir = filepath.Join(dir, "ingestion")
-	return dir
+	return shared.GetIngestionDir()
 }
 
 func noErr(err error) {
-	if err != nil {
-		panic(err)
-	}
+	shared.NoErr(err)
 }
 
 func Experiment(
@@ -25,15 +23,18 @@ func Experiment(
 	ftsdbExecutor,
 	prometheusExecutor func(),
 ) {
-	ftsdbStats := NewStats()
-	stop := ftsdbStats.StartMonitoring(statsInterval)
-	ftsdbExecutor()
+	runtime.GC()
+	prometheusStats := NewStats()
+	stop := prometheusStats.StartMonitoring(statsInterval)
+	prometheusExecutor()
+	time.Sleep(time.Second)
 	stop()
 	runtime.GC()
 
-	prometheusStats := NewStats()
-	stop = prometheusStats.StartMonitoring(statsInterval)
-	prometheusExecutor()
+	ftsdbStats := NewStats()
+	stop = ftsdbStats.StartMonitoring(statsInterval)
+	ftsdbExecutor()
+	time.Sleep(time.Second)
 	stop()
 	runtime.GC()
 
@@ -44,5 +45,5 @@ func Experiment(
 		Filepath:        filepath,
 	})
 
-	runtime.GC()
+	os.RemoveAll(GetIngestionDir())
 }

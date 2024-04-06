@@ -6,8 +6,11 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/Marvin9/ftsdb/shared"
 	"go.uber.org/zap"
 )
 
@@ -48,6 +51,7 @@ type DBInterface interface {
 	CreateMetric(metric string) *ftsdbMetric
 	DisplayMetrics()
 	Commit() error
+	Close()
 }
 
 type ftsdbInMemory struct {
@@ -176,9 +180,21 @@ type Chunk struct {
 
 func (c *Chunk) Encode() []byte {
 	encodedData := strings.Builder{}
+
+	totalDistinctSeriesInChunk := len(c.Meta.Series)
+	lines := make([]strings.Builder, totalDistinctSeriesInChunk)
+
 	for _, data := range c.Data {
-		encodedData.WriteString(fmt.Sprintf("%d-%d-%d,", data.Series, data.Datapoint.Timestamp, data.Datapoint.Value))
+		lines[int(data.Series)].WriteString(fmt.Sprintf("%d-%d,", data.Datapoint.Timestamp, data.Datapoint.Value))
 	}
+
+	for idx, line := range lines {
+		encodedData.WriteString(line.String())
+		if idx < len(lines)-1 {
+			encodedData.WriteString("\n")
+		}
+	}
+
 	return []byte(encodedData.String())
 }
 
@@ -219,6 +235,10 @@ func NewChunk() *Chunk {
 }
 
 func (ftsdb *ftsdb) Commit() error {
+	if ftsdb.inMemory.metric.size < 1000 {
+		return nil
+	}
+
 	// ftsdb.logger.Debug("commit request")
 	chunk := NewChunk()
 
@@ -257,7 +277,9 @@ func (ftsdb *ftsdb) Commit() error {
 	dir := filepath.Join(ftsdb.dir, fmt.Sprintf("%d", chunk.Meta.MinTimestamp))
 
 	if err := os.MkdirAll(dir, 0777); err != nil {
-		return err
+		if !os.IsExist(err) {
+			return err
+		}
 	}
 
 	metafilename := filepath.Join(dir, "meta.json")
@@ -290,113 +312,143 @@ func (ftsdb *ftsdb) Commit() error {
 }
 
 func (ftsdb *ftsdb) Find(query Query) *SeriesIterator {
-	// MATCHED METRICS
-	matchedMetrics := matchedMetricsPresentation{}
+	currentDirectory := shared.GetIngestionDir()
 
-	currentMatchedMetricsItr := &matchedMetrics
-	currentMetricsItr := &ftsdbMetric{}
-	currentMetricsItr = ftsdb.inMemory.metric
+	files, _ := os.ReadDir(currentDirectory)
 
-	for currentMetricsItr != nil {
-		metricMatched := query.metric == nil || currentMetricsItr.metric == *query.metric
-		if metricMatched {
-			*currentMatchedMetricsItr = matchedMetricsPresentation{
-				matched: currentMetricsItr,
-				next:    &matchedMetricsPresentation{},
-			}
-			currentMatchedMetricsItr = currentMatchedMetricsItr.next
+	minTimestamps := []int{}
+	for _, file := range files {
+		if file.IsDir() {
+			minTimestamp, _ := strconv.Atoi(file.Name())
+			minTimestamps = append(minTimestamps, minTimestamp)
 		}
-		currentMetricsItr = currentMetricsItr.next
 	}
 
-	// MATCHED SERIES
-	currentMatchedMetricsItr = &matchedMetrics
+	sort.Ints(minTimestamps)
 
-	var currentSeriesItr *ftsdbSeries = nil
+	lowerBound := 0
+	if query.rangeStart != nil {
+		for idx, value := range minTimestamps {
+			if value > int(*query.rangeStart) {
+				lowerBound = idx - 1
+
+				if lowerBound == -1 {
+					lowerBound = 0
+				}
+				break
+			}
+		}
+	}
+
+	minTimestamps = minTimestamps[lowerBound:]
+
+	upperBound := len(minTimestamps)
+	if query.rangeEnd != nil {
+		for idx, value := range minTimestamps {
+			if value > int(*query.rangeEnd) {
+				upperBound = idx
+				break
+			}
+		}
+	}
+
+	minTimestamps = minTimestamps[:upperBound]
+
+	metaCache := map[int]ChunkMeta{}
+
+	for _, minTimestamp := range minTimestamps {
+		metaCache[minTimestamp] = GetChunkMeta(minTimestamp)
+	}
+
+	seriesToIterate := make([]map[string]string, 0)
+
+	getSeries := func(series map[string]string) int {
+		for idx, existingSeries := range seriesToIterate {
+			if seriesMatched(existingSeries, series) {
+				return idx
+			}
+		}
+		return -1
+	}
+
+	for _, minTimestamp := range minTimestamps {
+		meta := metaCache[minTimestamp]
+
+		for _, series := range meta.Series {
+			if getSeries(series) == -1 {
+				// only required series
+				if query.series == nil || seriesMatched(query.series, series) {
+					seriesToIterate = append(seriesToIterate, series)
+				}
+			}
+		}
+	}
 
 	ss := &SeriesIterator{}
 
+	seriesIterator := -1
 	Next := func() *SeriesIterator {
-		if currentSeriesItr == nil {
-			currentSeriesItr = currentMatchedMetricsItr.matched.series
-		} else {
-			currentSeriesItr = currentSeriesItr.next
+		seriesIterator++
+
+		if seriesIterator >= len(seriesToIterate) {
+			return nil
 		}
 
-		for currentMatchedMetricsItr != nil {
-			for currentSeriesItr != nil {
-				matched := query.series == nil || seriesMatched(currentSeriesItr.series, query.series)
+		var datapoints []ChunkData
 
-				if matched {
-					dataPointsItr := 0
-					initialised := false
+		dd := &DatapointsIterator{}
 
-					var rangeEnd int64
+		dataPointsIterator := -1
+		chunkIterator := 0
+		Next := func() *DatapointsIterator {
+			dataPointsIterator++
+			if dataPointsIterator == 0 {
+				chunkIndex := minTimestamps[chunkIterator]
+				datapoints = ReadSeries(chunkIndex, metaCache[chunkIndex], seriesToIterate[seriesIterator])
+			}
 
-					dd := &DatapointsIterator{}
+			if dataPointsIterator >= len(datapoints) {
+				chunkIterator++
+				dataPointsIterator = 0
+			}
 
-					Next := func() *DatapointsIterator {
-						if !initialised {
-							if query.rangeStart != nil {
-								dataPointsItr = currentSeriesItr.LowerBoundTimestamp(*query.rangeStart)
-							}
+			if chunkIterator >= len(minTimestamps) {
+				return nil
+			}
 
-							rangeEnd = math.MaxInt64
-
-							if query.rangeEnd != nil {
-								rangeEnd = *query.rangeEnd
-							}
-							initialised = true
-						} else {
-							dataPointsItr++
-						}
-
-						if dataPointsItr < currentSeriesItr.dataPoints.size {
-							dataPoint := currentSeriesItr.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
-
-							if dataPoint.timestamp > rangeEnd {
-								dataPointsItr++
-								return nil
-							}
-
-							return dd
-						}
-
-						return nil
-					}
-
-					dd.Next = Next
-					dd.GetDatapoint = func() Datapoint {
-						val := currentSeriesItr.dataPoints.At(dataPointsItr).(*ftsdbDataPoint)
-						return Datapoint{
-							Timestamp: val.timestamp,
-							Value:     int64(val.value),
-						}
-					}
-					ss.DatapointsIterator = dd
-					return ss
+			if query.rangeStart != nil && dd.GetDatapoint().Timestamp < *query.rangeStart {
+				for dataPointsIterator < len(datapoints) && datapoints[dataPointsIterator].Datapoint.Timestamp < *query.rangeStart {
+					dataPointsIterator++
 				}
-
-				currentSeriesItr = currentSeriesItr.next
 			}
 
-			currentMatchedMetricsItr = currentMatchedMetricsItr.next
-			if currentMatchedMetricsItr != nil && currentMatchedMetricsItr.matched != nil {
-				currentSeriesItr = currentMatchedMetricsItr.matched.series
+			if query.rangeEnd != nil && dd.GetDatapoint().Timestamp > *query.rangeEnd {
+				return nil
 			}
+
+			return dd
 		}
+		dd.Next = Next
+		dd.GetDatapoint = func() Datapoint {
+			return datapoints[dataPointsIterator].Datapoint
+		}
+		ss.DatapointsIterator = dd
 
-		return nil
+		return ss
 	}
 
 	ss.Next = Next
 	ss.GetSeries = func() Series {
 		return Series{
-			SeriesValue: currentSeriesItr.series,
+			SeriesValue: seriesToIterate[seriesIterator],
 		}
 	}
-
 	return ss
+}
+
+func (ftsdb *ftsdb) Close() {
+	ftsdb.logger = nil
+	ftsdb.inMemory = nil
 }
 
 type MetricInterface interface {
@@ -409,6 +461,7 @@ type ftsdbMetric struct {
 	series *ftsdbSeries
 	next   *ftsdbMetric
 	logger *zap.Logger
+	size   int64
 }
 
 func NewMetric(metric string, logger *zap.Logger) *ftsdbMetric {
@@ -416,6 +469,7 @@ func NewMetric(metric string, logger *zap.Logger) *ftsdbMetric {
 		metric: metric,
 		logger: logger,
 		series: nil,
+		size:   0,
 	}
 }
 
@@ -425,6 +479,8 @@ func (fm *ftsdbMetric) Append(series map[string]string, timestamp int64, value f
 	seriesItr := fm.createSeries(series)
 
 	(*seriesItr).dataPoints.Insert(newDataPoint(timestamp, value))
+
+	fm.size++
 }
 
 func (fm *ftsdbMetric) createSeries(series map[string]string) *ftsdbSeries {

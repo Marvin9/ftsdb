@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/components"
@@ -75,10 +77,12 @@ func Plot(plotOpts PlotOpts) {
 	for i := 0; i < minXAxis; i++ {
 		ftsdbSeriesMemory = append(ftsdbSeriesMemory, opts.LineData{
 			Value: ftsdbStats.Data[i].Mem.Alloc,
+			Name:  fmt.Sprintf("%.2fMB", float64(ftsdbStats.Data[i].Mem.Alloc)*0.000001),
 		})
 
 		promSeriesMemory = append(promSeriesMemory, opts.LineData{
 			Value: prometheusStats.Data[i].Mem.Alloc,
+			Name:  fmt.Sprintf("%.2fMB", float64(prometheusStats.Data[i].Mem.Alloc)*0.000001),
 		})
 	}
 
@@ -121,4 +125,8 @@ func Plot(plotOpts PlotOpts) {
 	page.AddCharts(CPULine, MemoryLine, HeapLine)
 
 	page.Render(f)
+
+	currentDir, _ := os.Getwd()
+	resultFile := filepath.Join(currentDir, plotOpts.Filepath)
+	exec.Command("open", fmt.Sprintf("file://%s", resultFile)).Start()
 }

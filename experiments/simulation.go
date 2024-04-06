@@ -36,6 +36,10 @@ func getHeavySeriesList(_i int) []map[string]int {
 	return seriesList
 }
 
+func GetHeavySeriesList(_i int) []map[string]int {
+	return getHeavySeriesList(_i)
+}
+
 func getHeavySeries(_i int) map[string]int {
 	series := make(map[string]int)
 
@@ -63,9 +67,7 @@ func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) {
 			it.At()
 		}
 	}
-	if tot > 0 {
-		// fmt.Println(__series, tot)
-	}
+	// fmt.Println(tot)
 }
 
 func FTSDBIterateAll(ss *ftsdb.SeriesIterator) {
@@ -106,8 +108,8 @@ func BasicPrometheus() {
 		app.Append(ref, seriesWin, i, float64(i))
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
 	querier, err := db.Querier(math.MinInt64, math.MaxInt64)
 	noErr(err)
@@ -133,6 +135,8 @@ func BasicFTSDB(logger *zap.Logger) {
 
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
 
+	defer tsdb.Close()
+
 	metric := tsdb.CreateMetric("jay")
 
 	var i int64
@@ -140,6 +144,8 @@ func BasicFTSDB(logger *zap.Logger) {
 		metric.Append(seriesMac, int64(i), float64(i))
 		metric.Append(seriesWin, int64(i), float64(i))
 	}
+
+	tsdb.Commit()
 
 	query := ftsdb.Query{}
 	query.Series(seriesMac)
@@ -174,8 +180,8 @@ func RangePrometheusTSDB() {
 
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
 	querier, err := db.Querier(500000, math.MaxInt64)
 	noErr(err)
@@ -200,6 +206,7 @@ func RangeFTSDB(logger *zap.Logger) {
 	}
 
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 
 	metric := tsdb.CreateMetric("jay")
 
@@ -208,6 +215,8 @@ func RangeFTSDB(logger *zap.Logger) {
 		metric.Append(seriesMac, int64(i), float64(i))
 		metric.Append(seriesWin, int64(i), float64(i))
 	}
+
+	tsdb.Commit()
 
 	query := ftsdb.Query{}
 	query.RangeStart(500000)
@@ -244,8 +253,8 @@ func RangesPrometheusTSDB() {
 		app.Append(ref, seriesWin, i, float64(i))
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
 	querier, err := db.Querier(500000, 510000)
 	noErr(err)
@@ -270,6 +279,7 @@ func RangesFTSDB(logger *zap.Logger) {
 	}
 
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 
 	metric := tsdb.CreateMetric("jay")
 
@@ -278,6 +288,8 @@ func RangesFTSDB(logger *zap.Logger) {
 		metric.Append(seriesMac, int64(i), float64(i))
 		metric.Append(seriesWin, int64(i), float64(i))
 	}
+
+	tsdb.Commit()
 
 	query := ftsdb.Query{}
 	query.RangeStart(500000)
@@ -318,17 +330,18 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) {
 		}
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
-	// querier, err := db.Querier(math.MinInt64, math.MaxInt64)
-	// noErr(err)
+	querier, err := db.Querier(math.MinInt64, math.MaxInt64)
+	noErr(err)
 
-	// for _, seriesIn := range seriesList {
-	// 	for key, val := range seriesIn {
-	// 		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprintf("%d", val))))
-	// 	}
-	// }
+	for _, seriesIn := range seriesList {
+		for key, val := range seriesIn {
+			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprintf("%d", val))))
+		}
+	}
+
 	err = db.Close()
 	noErr(err)
 
@@ -338,6 +351,7 @@ func HeavyAppendPrometheusTSDB(seriesList []map[string]int, points int) {
 
 func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int, points int) {
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 
 	metric := tsdb.CreateMetric("jay")
 
@@ -352,18 +366,20 @@ func HeavyAppendFTSDB(logger *zap.Logger, seriesList []map[string]int, points in
 		}
 	}
 
-	// query := ftsdb.Query{}
+	tsdb.Commit()
 
-	// for _, seriesIn := range seriesList {
-	// 	for key, val := range seriesIn {
-	// 		__series := map[string]string{}
+	query := ftsdb.Query{}
 
-	// 		__series[key] = fmt.Sprintf("%d", val)
-	// 		query.Series(__series)
+	for _, seriesIn := range seriesList {
+		for key, val := range seriesIn {
+			__series := map[string]string{}
 
-	// 		FTSDBIterateAll(tsdb.Find(query))
-	// 	}
-	// }
+			__series[key] = fmt.Sprintf("%d", val)
+			query.Series(__series)
+
+			FTSDBIterateAll(tsdb.Find(query))
+		}
+	}
 }
 
 func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.Logger) {
@@ -386,8 +402,8 @@ func RealCPUUsageDataPrometheusTSDB(cpuData []transformer.CPUData, logger *zap.L
 		app.Append(0, series, data.Timestamp, data.CPUUsage)
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
 	querier, err := db.Querier(math.MinInt64, math.MaxInt64)
 	noErr(err)
@@ -405,12 +421,14 @@ func RealCPUUsageDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUData) {
 	series := labels.FromStrings("host", "macbook")
 
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 
 	metric := tsdb.CreateMetric("mayur")
 	for _, data := range cpuData {
 		metric.Append(series.Map(), data.Timestamp, data.CPUUsage)
 	}
 
+	tsdb.Commit()
 	query := ftsdb.Query{}
 	query.Series(series.Map())
 	FTSDBIterateAll(tsdb.Find(query))
@@ -430,7 +448,7 @@ func RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger *zap.Logger, cpu
 		app := db.Appender(context.Background())
 		app.Append(0, series, data.Timestamp, data.CPUUsage)
 
-		// noErr(app.Commit())
+		noErr(app.Commit())
 
 		queries, _ := db.Querier(math.MinInt64, math.MaxInt64)
 		// noErr(err)
@@ -449,13 +467,15 @@ func RealCPUUsageDataConsequentAppendWriteFTSDB(logger *zap.Logger, cpuData []tr
 	series := labels.FromStrings("host", "macbook")
 
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 
 	query := ftsdb.Query{}
 	query.Series(series.Map())
 
-	metric := tsdb.CreateMetric("mayur")
 	for _, data := range cpuData {
+		metric := tsdb.CreateMetric("mayur")
 		metric.Append(series.Map(), data.Timestamp, data.CPUUsage)
+		tsdb.Commit()
 		FTSDBIterateAll(tsdb.Find(query))
 	}
 }
@@ -476,8 +496,8 @@ func RealCPUUsageRangeDataPrometheusTSDB(logger *zap.Logger, cpuData []transform
 		app.Append(0, series, data.Timestamp, data.CPUUsage)
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
 	queries, err := db.Querier(cpuData[5000].Timestamp, math.MaxInt64)
 	noErr(err)
@@ -500,11 +520,14 @@ func RealCPUUsageRangeDataFTSDB(logger *zap.Logger, cpuData []transformer.CPUDat
 	series := labels.FromStrings("host", "macbook")
 
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 
 	metric := tsdb.CreateMetric("mayur")
 	for _, data := range cpuData {
 		metric.Append(series.Map(), data.Timestamp, data.CPUUsage)
 	}
+
+	tsdb.Commit()
 
 	query := ftsdb.Query{}
 	query.Series(series.Map())
@@ -533,8 +556,8 @@ func AppendMillionPointsPrometheusTSDB() {
 		app.Append(0, series, int64(i), 0.1)
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
 	err = db.Close()
 	noErr(err)
@@ -545,6 +568,7 @@ func AppendMillionPointsPrometheusTSDB() {
 
 func AppendMillionPointsFTSDB(logger *zap.Logger) {
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 	m := tsdb.CreateMetric("met")
 	for i := 1; i <= 1000000; i++ {
 		m.Append(map[string]string{"foo": "bar"}, int64(i), 0.1)
@@ -553,6 +577,7 @@ func AppendMillionPointsFTSDB(logger *zap.Logger) {
 
 func AppendPointsWithLabelsFTSDB(logger *zap.Logger, points int) {
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 	m := tsdb.CreateMetric("met")
 	for i := 1; i <= points; i++ {
 		series := map[string]string{}
@@ -586,8 +611,8 @@ func AppendPointsWithLabelsPrometheusTSDB(points int) {
 		app.Append(0, labels.FromMap(series), int64(i), 0.1)
 	}
 
-	// err = app.Commit()
-	// noErr(err)
+	err = app.Commit()
+	noErr(err)
 
 	err = db.Close()
 	noErr(err)
@@ -626,14 +651,6 @@ func HeavyAppendWriteDiskPrometheusTSDB(seriesList []map[string]int, points int)
 	err = app.Commit()
 	noErr(err)
 
-	// querier, err := db.Querier(math.MinInt64, math.MaxInt64)
-	// noErr(err)
-
-	// for _, seriesIn := range seriesList {
-	// 	for key, val := range seriesIn {
-	// 		PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, key, fmt.Sprintf("%d", val))))
-	// 	}
-	// }
 	err = db.Close()
 	noErr(err)
 
@@ -643,6 +660,7 @@ func HeavyAppendWriteDiskPrometheusTSDB(seriesList []map[string]int, points int)
 
 func HeavyAppendWriteDiskFTSDB(logger *zap.Logger, seriesList []map[string]int, points int) {
 	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
 
 	metric := tsdb.CreateMetric("jay")
 

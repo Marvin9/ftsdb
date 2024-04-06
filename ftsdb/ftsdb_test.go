@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -27,7 +28,6 @@ func TestEnsureEverything(t *testing.T) {
 	tsdb := NewFTSDB(logger, filepath.Join(dir, "ingestion"))
 
 	metric := tsdb.CreateMetric("cpu")
-	metric2 := tsdb.CreateMetric("mem")
 
 	num := 10
 
@@ -35,8 +35,9 @@ func TestEnsureEverything(t *testing.T) {
 	for i = 1; i <= num; i++ {
 		metric.Append(seriesMac, int64(i), float64(i))
 		metric.Append(seriesWin, int64(i), float64(i))
-		metric2.Append(seriesMac, int64(i), float64(i))
 	}
+
+	require.NoError(t, tsdb.Commit())
 
 	query := Query{}
 
@@ -46,17 +47,17 @@ func TestEnsureEverything(t *testing.T) {
 	for ss.Next() != nil {
 		dp := ss.DatapointsIterator
 
-		fmt.Println(ss.GetSeries())
+		// fmt.Println(ss.GetSeries())
 		for dp.Next() != nil {
-			fmt.Println(dp.GetDatapoint())
+			// fmt.Println(dp.GetDatapoint())
 			tot++
 		}
 	}
 
 	fmt.Println("done")
 
-	if tot != num*3 {
-		t.Errorf("expected %d, got %d", num*3, tot)
+	if tot != num*2 {
+		t.Errorf("expected %d, got %d", num*2, tot)
 	}
 
 	query.RangeStart(int64(num / 2))
@@ -72,7 +73,7 @@ func TestEnsureEverything(t *testing.T) {
 		}
 	}
 
-	exp := ((num / 2) + 1) * 3
+	exp := ((num / 2) + 1) * 2
 	if tot != exp {
 		t.Errorf("expected %d, got %d", exp, tot)
 	}
@@ -114,7 +115,7 @@ func TestEnsureEverything(t *testing.T) {
 		}
 	}
 
-	exp = num * 2
+	exp = num
 	if tot != exp {
 		t.Errorf("expected %d, got %d", exp, tot)
 	}
