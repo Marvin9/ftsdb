@@ -10,7 +10,7 @@ func main() {
 	logger, _ := zap.NewProduction()
 
 	experiments.Experiment(
-		"Append in 10000 points in 2 series",
+		"Append in 10k points in 2 series",
 		"./results/append-100-points-in-2-series.html",
 		100,
 		func() string {
@@ -29,7 +29,7 @@ func main() {
 	)
 
 	experiments.Experiment(
-		"Append in 1000000 points in 2 series and making range start call",
+		"Append in 1M points in 2 series and making range start query",
 		"./results/append-100-points-in-2-series-and-range-start-query.html",
 		50,
 		func() string {
@@ -42,7 +42,7 @@ func main() {
 	)
 
 	experiments.Experiment(
-		"Append in 1000000 points in 2 series and making range start and end call",
+		"Append in 1M points in 2 series and making range start and end query",
 		"./results/append-100-points-in-2-series-and-range-start-and-end-query.html",
 		50,
 		func() string {
@@ -90,7 +90,7 @@ func main() {
 	cpuData := dataTransformer.GenCPUData(100000)
 
 	experiments.Experiment(
-		"100K CPU Usage",
+		"Append 100K CPU Usage data in disk",
 		"./results/100k-cpu-usage.html",
 		50,
 		func() string {
@@ -103,7 +103,7 @@ func main() {
 	)
 
 	experiments.Experiment(
-		"Consequent writes",
+		"Append 10k CPU Usage data consequently in disk",
 		"./results/cpu-usage-consequent-writes.html",
 		50,
 		func() string {
@@ -116,15 +116,15 @@ func main() {
 	)
 
 	experiments.Experiment(
-		"Range data",
+		"Append 10k cpu usage data and make range query",
 		"./results/cpu-usage-range-data.html",
 		50,
 		func() string {
-			experiments.RealCPUUsageRangeDataFTSDB(logger, cpuData)
+			experiments.RealCPUUsageRangeDataFTSDB(logger, cpuData[:10000])
 			return ""
 		},
 		func() string {
-			return experiments.RealCPUUsageRangeDataPrometheusTSDB(logger, cpuData)
+			return experiments.RealCPUUsageRangeDataPrometheusTSDB(logger, cpuData[:10000])
 		},
 	)
 
