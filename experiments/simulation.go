@@ -83,8 +83,8 @@ func FTSDBIterateAll(ss *ftsdb.SeriesIterator) int {
 			tot++
 		}
 	}
-	return tot
 	// fmt.Println(tot)
+	return tot
 }
 
 func BasicPrometheus() string {

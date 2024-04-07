@@ -87,7 +87,7 @@ func main() {
 
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(100000)
+	cpuData := dataTransformer.GenCPUData("./data/cpu_usage.json", 100000)
 
 	experiments.Experiment(
 		"Append 100K CPU Usage data in disk",

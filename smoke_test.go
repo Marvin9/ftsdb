@@ -175,7 +175,7 @@ func TestSmoke(t *testing.T) {
 
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(100000)
+	cpuData := dataTransformer.GenCPUData("./data/cpu_usage.json", 100000)
 
 	// Open a TSDB for reading and/or writing.
 	db, err = tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)

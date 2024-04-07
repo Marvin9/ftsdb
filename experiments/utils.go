@@ -91,3 +91,8 @@ func toMegaBytes(n int) float64 {
 func toSeconds(n int) float64 {
 	return float64(n) * 0.001
 }
+
+func CleanupDir() {
+	noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+	noErr(os.RemoveAll(GetIngestionDir()))
+}

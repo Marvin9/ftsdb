@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Marvin9/ftsdb/shared"
 	"github.com/Marvin9/ftsdb/transformer"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
@@ -19,7 +20,7 @@ func Dummy() {
 	logger, _ := zap.NewDevelopment()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(-1)
+	cpuData := dataTransformer.GenCPUData("../data/cpu_usage.json", -1)
 
 	logger.Debug("cpu-data", zap.Int("len", len(cpuData)))
 
@@ -111,6 +112,9 @@ func Benchmark_BasicFTSDB(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			BasicFTSDB(logger)
 		})
 	}
@@ -119,6 +123,9 @@ func Benchmark_BasicFTSDB(b *testing.B) {
 func Benchmark_RangePrometheusTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RangePrometheusTSDB()
 		})
 	}
@@ -128,6 +135,9 @@ func Benchmark_RangeFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RangeFTSDB(logger)
 		})
 	}
@@ -136,6 +146,9 @@ func Benchmark_RangeFTSDB(b *testing.B) {
 func Benchmark_RangesPrometheusTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RangesPrometheusTSDB()
 		})
 	}
@@ -145,6 +158,9 @@ func Benchmark_RangesFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RangesFTSDB(logger)
 		})
 	}
@@ -156,6 +172,9 @@ func Benchmark_HeavyAppendPrometheusTSDB(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			HeavyAppendPrometheusTSDB(seriesList, 100000)
 		})
 	}
@@ -168,6 +187,9 @@ func Benchmark_HeavyAppendFTSDB(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			HeavyAppendFTSDB(logger, seriesList, 100000)
 		})
 	}
@@ -179,6 +201,9 @@ func Benchmark_HeavyAppendWriteDiskPrometheusTSDB(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			HeavyAppendWriteDiskPrometheusTSDB(seriesList, 100000)
 		})
 	}
@@ -191,6 +216,9 @@ func Benchmark_HeavyAppendWriteDiskFTSDB(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			HeavyAppendWriteDiskFTSDB(logger, seriesList, 100000)
 		})
 	}
@@ -200,10 +228,13 @@ func BenchmarkRealCPUUsageDataPrometheusTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(100000)
+	cpuData := dataTransformer.GenCPUData("../data/cpu_usage.json", 100000)
 	for n := 0; n < b.N; n++ {
 
 		b.Run("main", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RealCPUUsageDataPrometheusTSDB(cpuData, logger)
 		})
 
@@ -214,10 +245,13 @@ func BenchmarkRealCPUUsageDataFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(100000)
+	cpuData := dataTransformer.GenCPUData("../data/cpu_usage.json", 100000)
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RealCPUUsageDataFTSDB(logger, cpuData)
 		})
 	}
@@ -227,10 +261,13 @@ func BenchmarkRealCPUUsageDataConsequentAppendWritePrometheusTSDB(b *testing.B) 
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(10000)
+	cpuData := dataTransformer.GenCPUData("../data/cpu_usage.json", 10000)
 
 	for n := 0; n < b.N; n++ {
 		b.Run("main", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RealCPUUsageDataConsequentAppendWritePrometheusTSDB(logger, cpuData)
 		})
 	}
@@ -240,10 +277,13 @@ func BenchmarkRealCPUUsageDataConsequentAppendWriteFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(10000)
+	cpuData := dataTransformer.GenCPUData("../data/cpu_usage.json", 10000)
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RealCPUUsageDataConsequentAppendWriteFTSDB(logger, cpuData)
 		})
 	}
@@ -253,10 +293,13 @@ func BenchmarkRealCPUUsageRangeDataPrometheusTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(100000)
+	cpuData := dataTransformer.GenCPUData("../data/cpu_usage.json", 100000)
 
 	for n := 0; n < b.N; n++ {
 		b.Run("main", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RealCPUUsageRangeDataPrometheusTSDB(logger, cpuData)
 		})
 	}
@@ -266,10 +309,13 @@ func BenchmarkRealCPUUsageRangeDataFTSDB(b *testing.B) {
 	logger, _ := zap.NewProduction()
 	dataTransformer := transformer.NewDataTransformer(logger)
 
-	cpuData := dataTransformer.GenCPUData(100000)
+	cpuData := dataTransformer.GenCPUData("../data/cpu_usage.json", 100000)
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			RealCPUUsageRangeDataFTSDB(logger, cpuData)
 		})
 	}
@@ -278,6 +324,9 @@ func BenchmarkRealCPUUsageRangeDataFTSDB(b *testing.B) {
 func BenchmarkAppendMillionPointsPrometheusTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.Run("main", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			AppendMillionPointsPrometheusTSDB()
 		})
 	}
@@ -288,6 +337,9 @@ func BenchmarkAppendMillionPointsFTSDB(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			AppendMillionPointsFTSDB(logger)
 		})
 	}
@@ -296,6 +348,9 @@ func BenchmarkAppendMillionPointsFTSDB(b *testing.B) {
 func BenchmarkAppendHundredPointsWithLabelsPrometheusTSDB(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.Run("main", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			AppendPointsWithLabelsPrometheusTSDB(10000)
 		})
 	}
@@ -306,6 +361,9 @@ func BenchmarkAppendHundredPointsWithLabelsFTSDB(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		b.Run("core", func(b *testing.B) {
+			noErr(os.RemoveAll(shared.GetPromIngestionDir()))
+			noErr(os.RemoveAll(GetIngestionDir()))
+
 			AppendPointsWithLabelsFTSDB(logger, 10000)
 		})
 	}

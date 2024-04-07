@@ -25,10 +25,10 @@ func NewDataTransformer(logger *zap.Logger) *dataTransformer {
 	}
 }
 
-func (dt *dataTransformer) GenCPUData(_len int) []CPUData {
+func (dt *dataTransformer) GenCPUData(path string, _len int) []CPUData {
 	// dt.logger.Info("generating cpu data")
 
-	file, err := os.Open("./data/cpu_usage.json")
+	file, err := os.Open(path)
 
 	if err != nil {
 		panic(err)
