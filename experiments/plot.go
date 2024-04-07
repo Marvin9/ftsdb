@@ -36,6 +36,12 @@ func Plot(plotOpts PlotOpts) {
 			Title:    title,
 			Subtitle: subtitle,
 		}),
+		charts.WithYAxisOpts(opts.YAxis{
+			AxisLabel: &opts.AxisLabel{
+				Formatter: "{value}%",
+				Show:      true,
+			},
+		}),
 	)
 
 	minXAxis := int(math.Min(float64(len(ftsdbStats.Data)), float64(len(prometheusStats.Data))))
@@ -45,7 +51,7 @@ func Plot(plotOpts PlotOpts) {
 	promSeriesCPU := make([]opts.LineData, 0)
 
 	for i := 0; i < minXAxis; i++ {
-		xAxis = append(xAxis, fmt.Sprintf("%d", ftsdbStats.Data[i].Elapsed))
+		xAxis = append(xAxis, fmt.Sprintf("%d ms", ftsdbStats.Data[i].Elapsed))
 
 		ftsdbSeriesCPU = append(ftsdbSeriesCPU, opts.LineData{
 			Value: ftsdbStats.Data[i].CPU,
@@ -71,6 +77,12 @@ func Plot(plotOpts PlotOpts) {
 		charts.WithTitleOpts(opts.Title{
 			Title:    title,
 			Subtitle: subtitle,
+		}),
+		charts.WithYAxisOpts(opts.YAxis{
+			AxisLabel: &opts.AxisLabel{
+				Formatter: "{value}MB",
+				Show:      true,
+			},
 		}),
 	)
 
@@ -103,6 +115,12 @@ func Plot(plotOpts PlotOpts) {
 			Title:    title,
 			Subtitle: subtitle,
 		}),
+		charts.WithYAxisOpts(opts.YAxis{
+			AxisLabel: &opts.AxisLabel{
+				Formatter: "{value}MB",
+				Show:      true,
+			},
+		}),
 	)
 
 	ftsdbHeap := make([]opts.LineData, 0)
@@ -132,6 +150,12 @@ func Plot(plotOpts PlotOpts) {
 			Title:    title,
 			Subtitle: subtitle,
 		}),
+		charts.WithYAxisOpts(opts.YAxis{
+			AxisLabel: &opts.AxisLabel{
+				Formatter: "{value}MB",
+				Show:      true,
+			},
+		}),
 	)
 
 	DiskSize.SetXAxis([]string{"ftsdb-disk", "prometheus-disk"}).
@@ -151,6 +175,12 @@ func Plot(plotOpts PlotOpts) {
 		charts.WithTitleOpts(opts.Title{
 			Title:    title,
 			Subtitle: subtitle,
+		}),
+		charts.WithYAxisOpts(opts.YAxis{
+			AxisLabel: &opts.AxisLabel{
+				Formatter: "{value}s",
+				Show:      true,
+			},
 		}),
 	)
 
