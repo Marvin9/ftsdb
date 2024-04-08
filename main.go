@@ -10,7 +10,7 @@ func main() {
 	logger, _ := zap.NewProduction()
 
 	experiments.Experiment(
-		"Append in 10k points in 2 series",
+		"Append 1M points in 2 series",
 		"./results/append-100-points-in-2-series.html",
 		100,
 		func() string {
