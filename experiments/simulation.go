@@ -62,14 +62,16 @@ func PrometheusTSDBFindIterateAll(selector storage.SeriesSet) int {
 
 		it := series.Iterator(nil)
 
+		// fmt.Println(series.Labels())
+
 		for it.Next() == chunkenc.ValFloat {
 			tot++
-			it.At()
+			// fmt.Println(it.At())
 		}
 	}
 
+	// fmt.Println("prom", tot)
 	return tot
-	// fmt.Println(tot)
 }
 
 func FTSDBIterateAll(ss *ftsdb.SeriesIterator) int {
@@ -83,7 +85,7 @@ func FTSDBIterateAll(ss *ftsdb.SeriesIterator) int {
 			tot++
 		}
 	}
-	// fmt.Println(tot)
+	// fmt.Println("ftsdb", tot)
 	return tot
 }
 
@@ -658,4 +660,87 @@ func HeavyAppendWriteDiskFTSDB(logger *zap.Logger, seriesList []map[string]int, 
 	}
 
 	noErr(tsdb.Commit())
+}
+
+func RealRAMUsageDataPrometheusTSDB(cpuData, ramData []transformer.CPUData, seriesList []labels.Labels) string {
+	dir := shared.GetPromIngestionDir()
+
+	db, err := tsdb.Open(dir, nil, nil, tsdb.DefaultOptions(), nil)
+	noErr(err)
+
+	app := db.Appender(context.Background())
+
+	for _, series := range seriesList {
+		sseries := series.Map()
+		sseries["metric"] = "cpu"
+		for _, data := range cpuData {
+			app.Append(0, series, data.Timestamp, data.CPUUsage)
+		}
+	}
+
+	err = app.Commit()
+	noErr(err)
+
+	app = db.Appender(context.Background())
+
+	for _, series := range seriesList {
+		sseries := series.Map()
+		sseries["metric"] = "ram"
+		for _, data := range ramData {
+			app.Append(0, labels.FromMap(sseries), data.Timestamp, data.RAMUsage)
+		}
+	}
+
+	err = app.Commit()
+	noErr(err)
+
+	querier, err := db.Querier(math.MinInt64, math.MaxInt64)
+	noErr(err)
+
+	for _, series := range seriesList {
+		all := series.Map()
+		for k, v := range all {
+			PrometheusTSDBFindIterateAll(querier.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchEqual, k, v)))
+		}
+	}
+
+	return dir
+}
+
+func RealRAMUsageDataFTSDB(logger *zap.Logger, cpuData, ramData []transformer.CPUData, seriesList []map[string]string) {
+	tsdb := ftsdb.NewFTSDB(logger, GetIngestionDir())
+	defer tsdb.Close()
+
+	metric := tsdb.CreateMetric("mayur")
+	for _, series := range seriesList {
+		series["metric"] = "cpu"
+		for _, data := range cpuData {
+			metric.Append(series, data.Timestamp, data.CPUUsage)
+		}
+		delete(series, "metric")
+	}
+
+	noErr(tsdb.Commit())
+
+	metric = tsdb.CreateMetric("mayur")
+
+	for _, series := range seriesList {
+		series["metric"] = "ram"
+		for _, data := range ramData {
+			metric.Append(series, data.Timestamp, data.RAMUsage)
+		}
+		delete(series, "metric")
+	}
+
+	noErr(tsdb.Commit())
+
+	query := ftsdb.Query{}
+
+	for _, series := range seriesList {
+		all := series
+		for k, v := range all {
+			query.Series(map[string]string{k: v})
+			FTSDBIterateAll(tsdb.Find(query))
+		}
+	}
 }

@@ -9,10 +9,12 @@ import (
 )
 
 const LAYOUT = "2006-01-02T15:04:05.00000"
+const FALLBACK_LAYOUT = "2006-01-02T15:04:05.000000"
 
 type CPUData struct {
 	Timestamp int64   `json:"timestamp"`
 	CPUUsage  float64 `json:"cpu_usage"`
+	RAMUsage  float64 `json:"ram_usage"`
 }
 
 type dataTransformer struct {
@@ -39,6 +41,7 @@ func (dt *dataTransformer) GenCPUData(path string, _len int) []CPUData {
 	type cpuDataJson struct {
 		Timestamp string
 		CpuUsage  float64 `json:"cpu_usage"`
+		RamUsage  float64 `json:"ram_usage"`
 	}
 
 	var cpuData []cpuDataJson
@@ -67,6 +70,7 @@ func (dt *dataTransformer) GenCPUData(path string, _len int) []CPUData {
 		transformCpuData = append(transformCpuData, CPUData{
 			Timestamp: unixTs,
 			CPUUsage:  data.CpuUsage,
+			RAMUsage:  data.RamUsage,
 		})
 	}
 
@@ -80,7 +84,11 @@ func (dt *dataTransformer) parseTimestamp(timestamp string) int64 {
 	t, err := time.Parse(LAYOUT, timestamp)
 
 	if err != nil {
-		return -1
+		t, err = time.Parse(FALLBACK_LAYOUT, timestamp)
+
+		if err != nil {
+			return -1
+		}
 	}
 
 	return t.UnixMilli()

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"strconv"
+
 	"github.com/Marvin9/ftsdb/experiments"
 	"github.com/Marvin9/ftsdb/transformer"
+	"github.com/prometheus/prometheus/model/labels"
 	"go.uber.org/zap"
 )
 
@@ -151,6 +154,34 @@ func main() {
 		},
 		func() string {
 			return experiments.AppendPointsWithLabelsPrometheusTSDB(10000)
+		},
+	)
+
+	var fSeriesList []map[string]string
+	for _, m := range seriesList {
+		convertedMap := make(map[string]string)
+		for k, v := range m {
+			convertedMap[k] = strconv.Itoa(v)
+		}
+		fSeriesList = append(fSeriesList, convertedMap)
+	}
+
+	var pSeriesList []labels.Labels
+	for _, m := range fSeriesList {
+		pSeriesList = append(pSeriesList, labels.FromMap(m))
+	}
+	ramData := dataTransformer.GenCPUData("./data/ram_usage.json", 100000)
+
+	experiments.Experiment(
+		"Append 100K CPU and RAM usage data in disk",
+		"./results/100k-cpu-ram-usage.html",
+		50,
+		func() string {
+			experiments.RealRAMUsageDataFTSDB(logger, cpuData, ramData, fSeriesList)
+			return ""
+		},
+		func() string {
+			return experiments.RealRAMUsageDataPrometheusTSDB(cpuData, ramData, pSeriesList)
 		},
 	)
 }
