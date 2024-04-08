@@ -44,22 +44,40 @@ func Plot(plotOpts PlotOpts) {
 		}),
 	)
 
-	minXAxis := int(math.Min(float64(len(ftsdbStats.Data)), float64(len(prometheusStats.Data))))
+	maxXAxis := int(math.Max(float64(len(ftsdbStats.Data)), float64(len(prometheusStats.Data))))
+
+	// minXAxis := int(math.Min(float64(len(ftsdbStats.Data)), float64(len(prometheusStats.Data))))
 
 	xAxis := []string{}
 	ftsdbSeriesCPU := make([]opts.LineData, 0)
 	promSeriesCPU := make([]opts.LineData, 0)
 
-	for i := 0; i < minXAxis; i++ {
-		xAxis = append(xAxis, fmt.Sprintf("%d ms", ftsdbStats.Data[i].Elapsed))
+	for i := 0; i < maxXAxis; i++ {
+		if i < len(ftsdbStats.Data) {
+			xAxis = append(xAxis, fmt.Sprintf("%d ms", ftsdbStats.Data[i].Elapsed))
+		} else {
+			xAxis = append(xAxis, fmt.Sprintf("%d ms", prometheusStats.Data[i].Elapsed))
+		}
 
-		ftsdbSeriesCPU = append(ftsdbSeriesCPU, opts.LineData{
-			Value: ftsdbStats.Data[i].CPU,
-		})
+		if i < len(ftsdbStats.Data) {
+			ftsdbSeriesCPU = append(ftsdbSeriesCPU, opts.LineData{
+				Value: ftsdbStats.Data[i].CPU,
+			})
+		} else {
+			ftsdbSeriesCPU = append(ftsdbSeriesCPU, opts.LineData{
+				Value: 0,
+			})
+		}
 
-		promSeriesCPU = append(promSeriesCPU, opts.LineData{
-			Value: prometheusStats.Data[i].CPU,
-		})
+		if i < len(prometheusStats.Data) {
+			promSeriesCPU = append(promSeriesCPU, opts.LineData{
+				Value: prometheusStats.Data[i].CPU,
+			})
+		} else {
+			promSeriesCPU = append(promSeriesCPU, opts.LineData{
+				Value: 0,
+			})
+		}
 	}
 
 	CPULine.SetXAxis(xAxis).
@@ -89,14 +107,26 @@ func Plot(plotOpts PlotOpts) {
 	ftsdbSeriesMemory := make([]opts.LineData, 0)
 	promSeriesMemory := make([]opts.LineData, 0)
 
-	for i := 0; i < minXAxis; i++ {
-		ftsdbSeriesMemory = append(ftsdbSeriesMemory, opts.LineData{
-			Value: toMegaBytes(int(ftsdbStats.Data[i].Mem.Alloc)),
-		})
+	for i := 0; i < maxXAxis; i++ {
+		if i < len(ftsdbStats.Data) {
+			ftsdbSeriesMemory = append(ftsdbSeriesMemory, opts.LineData{
+				Value: toMegaBytes(int(ftsdbStats.Data[i].Mem.Alloc)),
+			})
+		} else {
+			ftsdbSeriesMemory = append(ftsdbSeriesMemory, opts.LineData{
+				Value: 0,
+			})
+		}
 
-		promSeriesMemory = append(promSeriesMemory, opts.LineData{
-			Value: toMegaBytes(int(prometheusStats.Data[i].Mem.Alloc)),
-		})
+		if i < len(prometheusStats.Data) {
+			promSeriesMemory = append(promSeriesMemory, opts.LineData{
+				Value: toMegaBytes(int(prometheusStats.Data[i].Mem.Alloc)),
+			})
+		} else {
+			promSeriesMemory = append(promSeriesMemory, opts.LineData{
+				Value: 0,
+			})
+		}
 	}
 
 	MemoryLine.SetXAxis(xAxis).
@@ -126,14 +156,27 @@ func Plot(plotOpts PlotOpts) {
 	ftsdbHeap := make([]opts.LineData, 0)
 	promHeap := make([]opts.LineData, 0)
 
-	for i := 0; i < minXAxis; i++ {
-		ftsdbHeap = append(ftsdbHeap, opts.LineData{
-			Value: toMegaBytes(int(ftsdbStats.Data[i].Mem.Mallocs)),
-		})
+	for i := 0; i < maxXAxis; i++ {
+		if i < len(ftsdbStats.Data) {
+			ftsdbHeap = append(ftsdbHeap, opts.LineData{
+				Value: toMegaBytes(int(ftsdbStats.Data[i].Mem.Mallocs)),
+			})
+		} else {
+			ftsdbHeap = append(ftsdbHeap, opts.LineData{
+				Value: 0,
+			})
+		}
 
-		promHeap = append(promHeap, opts.LineData{
-			Value: toMegaBytes(int(prometheusStats.Data[i].Mem.Mallocs)),
-		})
+		if i < len(prometheusStats.Data) {
+			promHeap = append(promHeap, opts.LineData{
+				Value: toMegaBytes(int(prometheusStats.Data[i].Mem.Mallocs)),
+			})
+		} else {
+			promHeap = append(promHeap, opts.LineData{
+				Value: 0,
+			})
+
+		}
 	}
 
 	HeapLine.SetXAxis(xAxis).

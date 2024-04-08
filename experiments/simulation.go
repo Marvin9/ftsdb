@@ -105,7 +105,7 @@ func BasicPrometheus() string {
 	var ref storage.SeriesRef = 0
 
 	var i int64
-	for i = 0; i < 10000; i++ {
+	for i = 0; i < 1000000; i++ {
 		app.Append(0, seriesMac, i, float64(i))
 		app.Append(ref, seriesWin, i, float64(i))
 	}
@@ -141,7 +141,7 @@ func BasicFTSDB(logger *zap.Logger) {
 	metric := tsdb.CreateMetric("jay")
 
 	var i int64
-	for i = 0; i < 10000; i++ {
+	for i = 0; i < 1000000; i++ {
 		metric.Append(seriesMac, int64(i), float64(i))
 		metric.Append(seriesWin, int64(i), float64(i))
 	}

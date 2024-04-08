@@ -34,6 +34,7 @@ func Experiment(
 	dir := prometheusExecutor()
 	time.Sleep(time.Second)
 	stop()
+	prometheusStats.RunningTime -= 1000
 	size, _ := getFolderSize(dir)
 	prometheusStats.DiskSize = int(size)
 	runtime.GC()
@@ -43,6 +44,7 @@ func Experiment(
 	ftsdbExecutor()
 	time.Sleep(time.Second)
 	stop()
+	ftsdbStats.RunningTime -= 1000
 	size, _ = getFolderSize(shared.GetIngestionDir())
 	ftsdbStats.DiskSize = int(size)
 	runtime.GC()
