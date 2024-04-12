@@ -1,2 +1,3 @@
 - Append Only
 - No tombstones
+- No WAL
