@@ -94,6 +94,37 @@ FROM time_series;" | jq > data/ram_usage.json
 go run .
 ```
 
+## Benchmarks
+
+```sh
+$ go test -bench=. ./experiments
+goos: darwin
+goarch: arm64
+pkg: github.com/Marvin9/ftsdb/experiments
+Benchmark_BasicPrometheusTSDB/core-8                                           1        78359559084 ns/op
+Benchmark_BasicFTSDB/core-8                                             1000000000               0.6350 ns/op
+Benchmark_RangePrometheusTSDB/core-8                                           1        73092514708 ns/op
+Benchmark_RangeFTSDB/core-8                                             1000000000               0.6151 ns/op
+Benchmark_RangesPrometheusTSDB/core-8                                          1        15577411458 ns/op
+Benchmark_RangesFTSDB/core-8                                            1000000000               0.6169 ns/op
+Benchmark_HeavyAppendPrometheusTSDB/core-8                                     1        7467235958 ns/op
+Benchmark_HeavyAppendFTSDB/core-8                                              1        1695781417 ns/op
+Benchmark_HeavyAppendWriteDiskPrometheusTSDB/core-8                     1000000000               0.3399 ns/op
+Benchmark_HeavyAppendWriteDiskFTSDB/core-8                                     1        1019162334 ns/op
+BenchmarkRealCPUUsageDataPrometheusTSDB/main-8                          1000000000               0.4565 ns/op
+BenchmarkRealCPUUsageDataFTSDB/core-8                                   1000000000               0.04666 ns/op
+BenchmarkRealCPUUsageDataConsequentAppendWritePrometheusTSDB/main-8                    1        4845681375 ns/op
+BenchmarkRealCPUUsageDataConsequentAppendWriteFTSDB/core-8                             1        2216013917 ns/op
+BenchmarkRealCPUUsageRangeDataPrometheusTSDB/main-8                             1000000000               0.4203 ns/op
+BenchmarkRealCPUUsageRangeDataFTSDB/core-8                                      1000000000               0.05934 ns/op
+BenchmarkAppendMillionPointsPrometheusTSDB/main-8                               1000000000               0.2887 ns/op
+BenchmarkAppendMillionPointsFTSDB/core-8                                        1000000000               0.3083 ns/op
+BenchmarkAppendHundredPointsWithLabelsPrometheusTSDB/main-8                            1        52461926083 ns/op
+BenchmarkAppendHundredPointsWithLabelsFTSDB/core-8                                     1        49967540542 ns/op
+PASS
+ok      github.com/Marvin9/ftsdb/experiments    445.670s
+```
+
 ## References
 
 [1] K. Ren, Q. Zheng, J. Arulraj, and G. Gibson, “SlimDB: A Space-efficient Key-value Storage Engine for Semi-sorted Data,” Proceedings of the VLDB Endowment, vol. 10, pp. 2037–2048, Sept. 2017. 
