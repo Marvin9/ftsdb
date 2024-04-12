@@ -561,6 +561,8 @@ func AppendMillionPointsFTSDB(logger *zap.Logger) {
 	for i := 1; i <= 1000000; i++ {
 		m.Append(map[string]string{"foo": "bar"}, int64(i), 0.1)
 	}
+
+	noErr(tsdb.Commit())
 }
 
 func AppendPointsWithLabelsFTSDB(logger *zap.Logger, points int) {
@@ -577,6 +579,8 @@ func AppendPointsWithLabelsFTSDB(logger *zap.Logger, points int) {
 		}
 		m.Append(series, int64(i), 0.1)
 	}
+
+	noErr(tsdb.Commit())
 }
 
 func AppendPointsWithLabelsPrometheusTSDB(points int) string {
