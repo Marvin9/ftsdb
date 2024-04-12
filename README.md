@@ -125,6 +125,13 @@ PASS
 ok      github.com/Marvin9/ftsdb/experiments    445.670s
 ```
 
+## FTSDB Considerations
+
+- Not production ready
+- Worst heap allocations, worst Memory spikes, Good query latency, Good compression (No WAL thats why)
+- No WAL
+- On an Assumption that timestamps append in sorted order (No Tombstones)
+
 ## References
 
 [1] K. Ren, Q. Zheng, J. Arulraj, and G. Gibson, “SlimDB: A Space-efficient Key-value Storage Engine for Semi-sorted Data,” Proceedings of the VLDB Endowment, vol. 10, pp. 2037–2048, Sept. 2017. 
